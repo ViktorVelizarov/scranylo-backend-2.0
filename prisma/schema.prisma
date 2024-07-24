@@ -1,0 +1,180 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// after each updating this file restart development server if you have in the package.json for "dev" atribute this value "prisma generate && nodemon index.js",
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Users {
+  id          Int           @id @default(autoincrement())
+  email       String?       @db.VarChar(250)
+  role        String?       @db.VarChar(100)
+  stats       DailyStat[]
+  reviews     Reviews[]
+  DailyQAStat DailyQAStat[]
+
+  @@map("ext_users")
+}
+
+model DailyStat {
+  id           Int                @id @default(autoincrement())
+  user         Int
+  date         DateTime?
+  totalSourced Int?
+  userRelation Users              @relation(fields: [user], references: [id])
+  candidates   SourcedCandidate[]
+  stats        SourcedStats[]
+
+  @@map("ext_daily_stats")
+}
+
+model SourcedCandidate {
+  id           Int       @id @default(autoincrement())
+  candidateURL String?   @db.VarChar(2048)
+  dailyStatsId Int
+  dailyStat    DailyStat @relation(fields: [dailyStatsId], references: [id])
+
+  @@map("ext_sourced_candidates")
+}
+
+model SourcedStats {
+  id           Int       @id @default(autoincrement())
+  dailyStatsId Int
+  jobId        Int
+  relevant     Int?
+  unrelevant   Int?
+  dailyStat    DailyStat @relation(fields: [dailyStatsId], references: [id])
+  job          Jobs      @relation(fields: [jobId], references: [id])
+
+  @@map("ext_sourced_stats")
+}
+
+model Jobs {
+  id             Int             @id @default(autoincrement())
+  title          String?         @unique @db.VarChar(250)
+  minConnections Int?
+  universities   String?         @db.LongText
+  gradYear       String?         @db.VarChar(250)
+  experience     String?         @db.VarChar(250)
+  relevantRoles  String?         @db.LongText
+  skills         String?         @db.LongText
+  relevantDoc    String?         @db.VarChar(500)
+  stats          SourcedStats[]
+  owners         JobOwners[]
+  created        jobCreatedTypes
+  allSkills      JobSkill[]
+
+  @@map("ext_jobs")
+}
+
+model JobOwners {
+  id    Int    @id @default(autoincrement())
+  jobId Int
+  owner String @db.VarChar(500)
+  job   Jobs   @relation(fields: [jobId], references: [id])
+
+  @@map("ext_job_owners")
+}
+
+model DailyQAStat {
+  id            Int                 @id @default(autoincrement())
+  user          Int
+  date          DateTime?
+  totalReviewed Int?
+  userRelation  Users               @relation(fields: [user], references: [id])
+  candidates    ReviewedCandidate[]
+
+  @@map("ext_daily_qa_stats")
+}
+
+model ReviewedCandidate {
+  id           Int         @id @default(autoincrement())
+  candidateURL String?     @db.VarChar(2048)
+  dailyStatsId Int
+  dailyStat    DailyQAStat @relation(fields: [dailyStatsId], references: [id])
+
+  @@map("ext_reviewed_candidates")
+}
+
+model Reviews {
+  id         Int          @id @default(autoincrement())
+  qaOwner    Int
+  comment    String?      @db.Text
+  score      String?      @db.VarChar(10)
+  date       DateTime?
+  User       Users        @relation(fields: [qaOwner], references: [id])
+  Candidates Candidates[]
+
+  @@map("ext_reviews")
+}
+
+model Candidates {
+  id               Int     @id @default(autoincrement())
+  reviewId         Int
+  dataType         String? @db.VarChar(50)
+  rowNum           Int?
+  name             String? @db.VarChar(500)
+  owner            String? @db.VarChar(255)
+  status           String? @db.VarChar(500)
+  transfered       String? @db.VarChar(500)
+  relevant         String? @db.VarChar(50)
+  LIprofileOld     String? @db.VarChar(2048)
+  LIprofileNew     String? @db.VarChar(2048)
+  connections      String? @db.VarChar(50)
+  currentRole      String? @db.VarChar(500)
+  country          String? @db.VarChar(500)
+  university       String? @db.VarChar(500)
+  yearOfGrad       String? @db.VarChar(50)
+  currentCompany   String? @db.VarChar(500)
+  yrsInCurrentComp String? @db.VarChar(500)
+  totalExp         String? @db.VarChar(50)
+  seniority        String? @db.VarChar(500)
+  jobType          String? @db.VarChar(500)
+  skills           String? @db.Text
+  reachoutTopic    String? @db.VarChar(500)
+  reachoutComment  String? @db.Text
+  qaScore          String? @db.VarChar(50)
+  qaComment        String? @db.Text
+  Review           Reviews @relation(fields: [reviewId], references: [id])
+
+  @@map("ext_candidates")
+}
+
+model AllSkills {
+  id   Int        @id @default(autoincrement())
+  name String     @unique @db.VarChar(500)
+  jobs JobSkill[]
+  candidates CandidateSkill[]
+
+  @@map("ext_all_skills")
+}
+
+model JobSkill {
+  jobId   Int
+  skillId Int
+  job     Jobs      @relation(fields: [jobId], references: [id])
+  skill   AllSkills @relation(fields: [skillId], references: [id])
+
+  @@id([jobId, skillId])
+  @@map("ext_job_skill")
+}
+
+model CandidateSkill {
+  candidateId Int
+  skillId     Int
+  skills      AllSkills  @relation(fields: [skillId], references: [id])
+
+  @@id([candidateId, skillId])
+  @@map("dtb_candidate_skill")
+}
+
+enum jobCreatedTypes {
+  manual
+  auto
+}

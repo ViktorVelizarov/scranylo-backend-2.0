@@ -1,0 +1,36 @@
+{
+  "name": "extension-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "prisma generate && nodemon index.js",
+    "preinstall": "npm i -D prisma",
+    "postinstall": "npx prisma generate"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google-cloud/local-auth": "^2.1.0",
+    "@prisma/client": "^4.14.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.1",
+    "firebase-admin": "^11.5.0",
+    "google-auth-library": "^8.7.0",
+    "google-spreadsheet": "^3.3.0",
+    "googleapis": "^105.0.0",
+    "mysql": "^2.18.1",
+    "node-cron": "^3.0.2",
+    "nodemon": "^2.0.19",
+    "papaparse": "^5.4.1",
+    "puppeteer": "^16.2.0",
+    "urlencode": "^1.1.0",
+    "util": "^0.12.5"
+  },
+  "devDependencies": {
+    "prisma": "^5.13.0"
+  }
+}
