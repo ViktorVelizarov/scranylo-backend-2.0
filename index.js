@@ -50,6 +50,7 @@ app.get("/api", async (req, res) => {
     name: req.query.name,
     owner: req.query.owner.trim(),
     url: req.query.link,
+    mode: req.query.mode, //receive the sorucing mode - people or company
     response: res,
   };
   getLinks(data);

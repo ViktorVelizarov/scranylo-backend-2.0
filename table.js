@@ -27,19 +27,39 @@ module.exports.getLinks = function (data) {
 };
 
 // Function to update candidate's data with scraped data and sourcer's stats
-module.exports.updateCandidate = function (candidate){
+module.exports.updateCandidate = function (candidate, data){
   authorize()
-    .then((res) => findCandidate(res, candidate))
+    .then((res) => findCandidate(res, candidate, data))
     .catch(console.error);
 }
 
 // Fins next/back links, verify sourcer, retriev relevant jobs and skills for scraping
-async function findLinks(JwtClient, data){
+async function findLinks(JwtClient, data) {
   const sheets = google.sheets({ version: "v4", auth: JwtClient });
+
+  // Determine the sheet name and range based on the data.mode
+  let sheetName;
+  console.log("data.mode")
+  console.log(data.mode)
+  if (data.mode === "people") {
+    sheetName = "List";
+  } else if (data.mode === "company") {
+    sheetName = "Companies";
+  } else {
+    data.response.status(400);
+    data.response.json({
+      error: "Invalid mode. Please specify 'people' or 'company'."
+    });
+    data.response.end();
+    return;
+  }
+  const range = `${sheetName}!A:AE`;
+  console.log("range:")
+  console.log(range)
   sheets.spreadsheets.values.get(
     {
       spreadsheetId: spreadsheetId,
-      range: "A:AE",  //sheet name not specified so it uses the default ( first sheet)
+      range: range,
     },
     async (err, res) => {
       if (err) {
@@ -69,6 +89,8 @@ async function findLinks(JwtClient, data){
 
       // Extract the spreadsheet's row data from the response
       const rows = res.data.values;
+      console.log("spreadsheet rows data")
+      console.log(rows)
       // Find the row indexs related to the current candidate
       let indxs = findRow(rows, data);
       // In case of duplicates, choose last one duplicate in the spreadsheet
@@ -92,7 +114,7 @@ async function findLinks(JwtClient, data){
         ) {
           offset++;
         }
-        // If after iteration we are not at first row (header), then get link to the prevoius profile ("LIprofile - Old" column)
+        // If after iteration we are not at first row (header), then get link to the previous profile ("LIprofile - Old" column)
         let back = "";
         if (indx - offset > 0) {
           back = rows[indx - offset][5];
@@ -107,7 +129,7 @@ async function findLinks(JwtClient, data){
         ) {
           indx++;
         }
-        // If after iteration we are not out of spreadsheet, then get link to the prevoius profile ("LIprofile - Old" column)
+        // If after iteration we are not out of spreadsheet, then get link to the previous profile ("LIprofile - Old" column)
         let next = "";
         if (indx < rows.length) {
           next = rows[indx][5];
@@ -143,13 +165,30 @@ async function findLinks(JwtClient, data){
   );
 }
 
+
 // Function to find a candidate in the specified spreadsheet
-async function findCandidate(JwtClient, candidate){
+async function findCandidate(JwtClient, candidate, data){
+  let sheetName;
+  if (data.mode === "people") {
+    sheetName = "List";
+  } else if (data.mode === "company") {
+    sheetName = "Companies";
+  } else {
+    data.response.status(400);
+    data.response.json({
+      error: "Invalid mode. Please specify 'people' or 'company'."
+    });
+    data.response.end();
+    return;
+  }
+  const range = `${sheetName}!A:AE`;
+  console.log("range2:")
+  console.log(range)
   const sheets = google.sheets({ version: "v4", auth: JwtClient });
   sheets.spreadsheets.values.get(
     {
       spreadsheetId: spreadsheetId,
-      range: "A:AE",
+      range: range,
     },
     async (err, res) => {
       if (err) {
@@ -276,6 +315,10 @@ function findRow(rows, data){
   data.url = urlencode.parse(data.url);
   // Assign the first key of the parsed url object to data.url
   data.url = Object.keys(data.url)[0];
+
+  console.log("parsed url object")
+  console.log(data.url)
+
   let indx = 0;
   // Initialize result indexes array to store the indexes where certain conditions are met (can be multiple matches because of duplicated profiles)
   let resultIndxs = [];
@@ -300,6 +343,8 @@ function findRow(rows, data){
         // Parse the URL into an object of key-value pairs and assign the first key to the link variable
         link = urlencode.parse(rows[indx][6]);
         link = Object.keys(link)[0];
+        console.log("link from sheet")
+        console.log(link)
       }
       // Check if the candidate's name matches and the parsed link matches the URL data
       if (rows[indx][0] == data.name && data.url == link) {
