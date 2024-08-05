@@ -28,6 +28,10 @@ module.exports.getLinks = function (data) {
 
 // Function to update candidate's data with scraped data and sourcer's stats
 module.exports.updateCandidate = function (candidate, data){
+  console.log("candidate in module.exports")
+  console.log(candidate)
+  console.log("data in module.exports")
+  console.log(data)
   authorize()
     .then((res) => findCandidate(res, candidate, data))
     .catch(console.error);
@@ -169,9 +173,13 @@ async function findLinks(JwtClient, data) {
 // Function to find a candidate in the specified spreadsheet
 async function findCandidate(JwtClient, candidate, data){
   let sheetName;
-  if (data.mode === "people") {
+  console.log(" candidate in findCandidate:")
+  console.log(candidate)
+  console.log("candidate mode")
+  console.log(candidate.mode)
+  if (candidate.mode === "people") {
     sheetName = "List";
-  } else if (data.mode === "company") {
+  } else if (candidate.mode === "company") {
     sheetName = "Companies";
   } else {
     data.response.status(400);
@@ -196,8 +204,11 @@ async function findCandidate(JwtClient, candidate, data){
       }
       // Extract the rows from the response
       const rows = res.data.values;
+      
       // Find the rows that match the given candidate
       let indxs = findRow(rows, candidate);
+      console.log("mathcing rows with given candidate: ")
+      console.log(indxs)
       // If no rows match the candidate, send a 500 status code and end the response
       if (indxs.length === 0) {
         candidate.response.status(500);
@@ -209,7 +220,9 @@ async function findCandidate(JwtClient, candidate, data){
           // Increment the index by 1 as in the spreadsheet's API indexes from 1
           indxs[i]++;
           // Attempt to update the candidate and capture the result
-          let result = await updateCandidate(JwtClient, indxs[i], candidate);
+          let result = await updateCandidate(JwtClient, indxs[i], candidate, data);
+          console.log("result from updating: ")
+          console.log(result)
           // If there's an error in updating the candidate, log it, send a 500 status code, and end the response
 
           if (
@@ -236,21 +249,31 @@ async function findCandidate(JwtClient, candidate, data){
         const user = await findUserByEmail(
           `${candidate.owner.toLowerCase()}@scaleup.agency`
         );
+        console.log("found sourcers email:")
+        console.log(user)
         // Update the sourcer's stats
-        const stats = await changeStats(
-          user.id,
-          candidate.sourcingJob,
-          candidate.relevant,
-          candidate.encodedUrl,
-          rows[indxs[indxs.length - 1] - 1]
-        );
+        let stats = null;
+        if (candidate.mode === "people") {
+           stats = await changeStats(
+            user.id,
+            candidate.sourcingJob,
+            candidate.relevant,
+            candidate.encodedUrl,
+            rows[indxs[indxs.length - 1] - 1]
+          );
+        }
+
+        const calculatedStats = await calcStats(stats ? stats.stats : null);
+        console.log("calculatedStats")
+        console.log(calculatedStats)
         // Send a 200 status code, along with a success message and the updated stats
         candidate.response.status(200);
+        console.log("send a 200 status")
         candidate.response.json({
           res: `The data for the candidate with the name ${
             candidate.name
           } has been added on the row(s): ${indxs.map((indx) => indx)}`,
-          stats: await calcStats(stats.stats),
+          stats: calculatedStats
         });
         candidate.response.end();
       }
@@ -259,57 +282,107 @@ async function findCandidate(JwtClient, candidate, data){
 }
 
 // Function to update a candidate's data in the specified spreadsheet on the given row
-async function updateCandidate(JwtClient, row, candidate) {
+async function updateCandidate(JwtClient, row, candidate, data) {
+  console.log("candidate mode in updateCandidate")
+  console.log(candidate.mode)
   const sheets = google.sheets({ version: "v4", auth: JwtClient });
+  let sheetName;
+  let values;
+
+  if (candidate.mode === "people") {
+    sheetName = "List";
+    values = [
+      [
+        candidate.name,
+        candidate.owner.trim(),
+        candidate.status,
+        ,
+        candidate.relevant,
+        ,
+        candidate.encodedUrl,
+        candidate.connections,
+        candidate.currentPosition,
+        ,
+        candidate.university.university,
+        candidate.university.graduationYear,
+        candidate.currentCompany,
+        candidate.yearInCurrent,
+        candidate.experience,
+        ,
+        candidate.currentType,
+        candidate.skills,
+        candidate.reachoutTopic,
+        candidate.reachoutComment,
+        ,
+        ,
+        ,
+        candidate.sourcingJob,
+        candidate.allSkills
+      ],
+    ];
+  } else if (candidate.mode === "company") {
+    console.log("found candidate: ")
+    console.log(candidate)
+    sheetName = "Companies";
+    values = [
+      [
+        candidate.name,
+        candidate.owner.trim(),
+        candidate.followers,
+        candidate.description,
+        candidate.website,
+        ,
+        candidate.industry, 
+        candidate.companySize,
+        candidate.totalHeadcount,
+        candidate.medianTenure,
+        candidate.hq,
+        candidate.specialities,
+        candidate.post1Text,
+        candidate.post2Text,
+        candidate.post3Text,
+        candidate.job1Title,
+        candidate.job1URL,
+        candidate.job2Title,
+        candidate.job2URL,
+        candidate.date
+      ],
+    ];
+  } else {
+    data.response.status(400);
+    data.response.json({
+      error: "Invalid mode. Please specify 'people' or 'company'."
+    });
+    data.response.end();
+    return;
+  }
+
   try {
     const response = (
       await sheets.spreadsheets.values.update({
         spreadsheetId: spreadsheetId,
-        range: `List!A${row}:Z${row}`,
-        // values in the rows will be interpreted as they were entered be user in UI, like automatic hyperlikeing, date formating etc.
+        range: `${sheetName}!A${row}:Z${row}`,
         valueInputOption: "USER_ENTERED",
         resource: {
           majorDimension: "ROWS",
-          values: [
-            [
-              candidate.name,
-              candidate.owner.trim(),
-              candidate.status,
-              ,
-              candidate.relevant,
-              ,
-              candidate.encodedUrl,
-              candidate.connections,
-              candidate.currentPosition,
-              ,
-              candidate.university.university,
-              candidate.university.graduationYear,
-              candidate.currentCompany,
-              candidate.yearInCurrent,
-              candidate.experience,
-              ,
-              candidate.currentType,
-              candidate.skills,
-              candidate.reachoutTopic,
-              candidate.reachoutComment,
-              ,
-              ,
-              ,
-              candidate.sourcingJob,
-              candidate.allSkills
-            ],
-          ],
+          values: values,
         },
       })
     ).data;
+    console.log("res from updateCandidate")
+    console.log(response)
     return response;
   } catch (err) {
+    console.log("error from updateCandidate")
+    console.log(err)
     return err;
   }
 }
 
 // Function to find a row in the spreadsheet based on certain criteria
 function findRow(rows, data){
+  console.log("all rows")
+      console.log(rows)
   data.encodedUrl = data.url;
   // Parse the url data using the urlencode module. This converts the encoded URL into an object of key-value pairs.
   data.url = urlencode.parse(data.url);
@@ -329,6 +402,8 @@ function findRow(rows, data){
       !rows[indx][1] &&
       rows[indx][rows[indx].length - 1].toLowerCase() !== "yes"
     ) {
+      console.log("matching indx")
+      console.log(indx)
       resultIndxs.push(indx);
       break;
     }
@@ -352,14 +427,16 @@ function findRow(rows, data){
       }
     }
   }
+  console.log("result indxs")
+  console.log(resultIndxs)
   return resultIndxs;
 }
 
 // Get total stats from all jobs
-async function calcStats(stats){
+async function calcStats(stats) {
   let totalRelevant = 0;
   let totalUnrelevant = 0;
-  if(stats){
+  if (stats) {
     for (const i in stats) {
       const job = stats[i];
       totalRelevant += job.relevant || 0;
@@ -370,5 +447,5 @@ async function calcStats(stats){
     total: totalRelevant + totalUnrelevant,
     relevant: totalRelevant,
     unrelevant: totalUnrelevant
-  }
+  };
 }

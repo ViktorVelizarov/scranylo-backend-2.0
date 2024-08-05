@@ -60,6 +60,8 @@ app.get("/api", async (req, res) => {
 app.post("/api", async (req, res) => {
   const candidateData = req.body;
   candidateData["response"] = res;
+  console.log("api post res:")
+  console.log(candidateData["response"])
   updateCandidate(candidateData);
 });
 

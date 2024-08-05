@@ -1,3 +1,4 @@
+const { MultiFactorInfo } = require("firebase-admin/auth");
 const prisma = require("../utils/prisma");
 
 // create new user, function used by relevancy web on the /users page
