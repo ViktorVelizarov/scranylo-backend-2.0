@@ -90,6 +90,23 @@ async function findLinks(JwtClient, data) {
       );
       // Fetch statistics related to the sourcer
       const stats = await getSourcerStats(user.id);
+      console.log("found user")
+      console.log(user)
+      //if the user doesnt have the company_scraper permission, then return an error
+      if(data.mode === "company" && user.company_scraper != "true" ){
+        data.response.status(200);
+        data.response.json({
+          back: "",
+          next: "",
+          skills: [],
+          rules: [],
+          alert: `You don't have permission to source companies : (`,
+        });
+        data.response.end();
+        return;
+      }
+      
+      
 
       // Extract the spreadsheet's row data from the response
       const rows = res.data.values;
