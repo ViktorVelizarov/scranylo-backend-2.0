@@ -15,6 +15,7 @@ model Users {
   id          Int           @id @default(autoincrement())
   email       String?       @db.VarChar(250)
   role        String?       @db.VarChar(100)
+  company_scraper        String?       @db.VarChar(100)
   stats       DailyStat[]
   reviews     Reviews[]
   DailyQAStat DailyQAStat[]

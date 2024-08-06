@@ -57,13 +57,21 @@ const findUserByEmail = async (userEmail) => {
     }
   });
   return user;
-} 
+}
 
-// function check if user exists in the database and if not, then  creates new user. Function calls while creating new job, so all job owners would be in the database of users.
+// function to find a user by ID, used by relevancy web on the /users page
+const findUserById = async (userId) => {
+  const user = await prisma.users.findUnique({
+    where: { id: parseInt(userId) },
+  });
+  return user;
+}
+
+// function check if user exists in the database and if not, then creates new user. Function calls while creating new job, so all job owners would be in the database of users.
 const checkUsers = async (owners) => {
   console.log(owners);
-  owners.forEach(async (owners) => {
-    const ownerEmail = `${owners.toLowerCase()}@scaleup.agency`;
+  owners.forEach(async (owner) => {
+    const ownerEmail = `${owner.toLowerCase()}@scaleup.agency`;
     const existingUser = await prisma.users.findFirst({
       where: {
         email: ownerEmail,
@@ -89,5 +97,6 @@ module.exports = {
   findAllUsers,
   findAdminByEmail,
   findUserByEmail,
+  findUserById, 
   checkUsers,
 };
