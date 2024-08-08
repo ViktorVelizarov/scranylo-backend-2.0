@@ -3,10 +3,13 @@ const prisma = require("../utils/prisma");
 
 // create new user, function used by relevancy web on the /users page
 const addNewUser = async (data) => {
+  console.log("received add user data:")
+  console.log(data)
   const newUser = await prisma.users.create({
     data: {
       email: data.email,
       role: data.role,
+      company_scraper: data.company_scraper
     }
   });
   return newUser;
@@ -14,11 +17,14 @@ const addNewUser = async (data) => {
 
 // update existing user, function used by relevancy web on the /users page
 const updateUserById = async (data) => {
+  console.log("received update user data:")
+  console.log(data)
   const updatedUser = await prisma.users.update({
     where: { id: data.id },
     data: {
       email: data.email,
-      role: data.role
+      role: data.role,
+      company_scraper: data.company_scraper
     },
   });
   return updatedUser;

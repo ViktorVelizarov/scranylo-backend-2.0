@@ -23,6 +23,14 @@ model Users {
   @@map("ext_users")
 }
 
+model Snipx_Users {
+  id          Int           @id @default(autoincrement())
+  email       String?       @db.VarChar(250)
+  role        String?       @db.VarChar(100)
+
+  @@map("snipx_users")
+}
+
 model DailyStat {
   id           Int                @id @default(autoincrement())
   user         Int
