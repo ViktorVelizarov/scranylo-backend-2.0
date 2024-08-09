@@ -17,6 +17,10 @@ const {
   findAdminByEmail,
 } = require("./database/user.js");
 const {
+  findSnipxAllUsers,
+  findSnipxAdminByEmail,
+} = require("./database/snipx_user.js");
+const {
   getAllJobs,
   createJob,
   updateJob,
@@ -118,6 +122,23 @@ app.post("/api/auth/firebase", async (req, res) => {
     .then(async (decodedToken) => {
       const email = decodedToken.email;
       const result = await findAdminByEmail(email);
+      res.status(200).json(result).end();
+    })
+    .catch((error) => {
+      console.log(error);
+      res.status(500).json(error).end();
+    });
+});
+
+//  Authenticates users based on the snipx_user table in db
+app.post("/api/snipx_auth/firebase", async (req, res) => {
+  const idToken = req.body.idToken;
+  // Verify user's token with Firebase
+  getAuth()
+    .verifyIdToken(idToken)
+    .then(async (decodedToken) => {
+      const email = decodedToken.email;
+      const result = await findSnipxAdminByEmail(email);
       res.status(200).json(result).end();
     })
     .catch((error) => {
@@ -232,6 +253,12 @@ app.delete("/api/all-skills", async (req, res) => {
 // Uses relevancy web. Get all users of extensions (sourcing and QA) adn relevancy web with their roles. "admin" role gives access to relevancy web and QA extension for the /users page
 app.get("/api/users", async (req, res) => {
   const allUsers = await findAllUsers();
+  res.status(200).json(allUsers).end();
+});
+
+// Get all snipx_users
+app.get("/api/snipx_users", async (req, res) => {
+  const allUsers = await findSnipxAllUsers();
   res.status(200).json(allUsers).end();
 });
 
