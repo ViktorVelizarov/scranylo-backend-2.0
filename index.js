@@ -21,6 +21,9 @@ const {
   findSnipxAdminByEmail,
 } = require("./database/snipx_user.js");
 const {
+  findAllSnippets,
+} = require("./database/snipx_snippets.js");
+const {
   getAllJobs,
   createJob,
   updateJob,
@@ -113,6 +116,32 @@ app.post("/api", async (req, res) => {
   updateCandidate(candidateData);
 });
 
+// get all snippets from db
+app.get("/api/snipx_snippets",async (req, res) => {
+  const allSnippets = await findAllSnippets();
+  console.log("allSnippets:")
+  console.log(allSnippets)
+  res.status(200).json(allSnippets).end();
+});
+
+
+// handle SnipX sent snippets from users of snipx
+app.post("/api/snipx_snippets", (req, res) => {
+  const {snipx_user_id, inputText, green, orange, red } = req.body;
+
+  // Log the received data to the console
+  console.log("Received SnipX snippet data:");
+  console.log("user_id", snipx_user_id)
+  console.log("Input Text:", inputText);
+  console.log("Green Snippets:", green);
+  console.log("Orange Snippets:", orange);
+  console.log("Red Snippets:", red);
+
+  // Send a response back to the client
+  res.status(200).json({ message: "Snippet data received successfully" });
+});
+
+
 //  Uses relevancy web. Authenticate user on login
 app.post("/api/auth/firebase", async (req, res) => {
   const idToken = req.body.idToken;
@@ -139,6 +168,8 @@ app.post("/api/snipx_auth/firebase", async (req, res) => {
     .then(async (decodedToken) => {
       const email = decodedToken.email;
       const result = await findSnipxAdminByEmail(email);
+      console.log("snipx admin user: ")
+      console.log(result)
       res.status(200).json(result).end();
     })
     .catch((error) => {

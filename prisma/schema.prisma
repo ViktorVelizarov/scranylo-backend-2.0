@@ -23,12 +23,28 @@ model Users {
   @@map("ext_users")
 }
 
+
 model Snipx_Users {
-  id          Int           @id @default(autoincrement())
-  email       String?       @db.VarChar(250)
-  role        String?       @db.VarChar(100)
+  id        Int         @id @default(autoincrement())
+  email     String?     @db.VarChar(250)
+  role      String?     @db.VarChar(100)
+
+  snippets  SnipxSnippet[]
 
   @@map("snipx_users")
+}
+
+model SnipxSnippet {
+  id        Int         @id @default(autoincrement())
+  user_id   Int?                                        // Foreign key to the Snipx_Users table
+  text      String?     @db.VarChar(500)               // Text column with a max length of 500
+  green     Json?                                      // JSON column for green snippets
+  orange    Json?                                      // JSON column for orange snippets
+  red       Json?                                      // JSON column for red snippets
+
+  user      Snipx_Users?  @relation(fields: [user_id], references: [id])
+
+  @@map("snipx_snippets")
 }
 
 model DailyStat {
