@@ -2,6 +2,10 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const admin = require("firebase-admin");
+const OpenAI = require("openai");
+const { z } = require("zod");
+const { zodResponseFormat } = require("openai/helpers/zod");
+
 const { getAuth } = require("firebase-admin/auth");
 const { getLinks, updateCandidate } = require("./table.js");
 const { getQAPath, qaUpdate } = require("./table-qa");
@@ -32,6 +36,18 @@ const {
   getJobConnectionsWithSkill,
 } = require("./database/allSkillJob");
 
+// Initialize OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Define the expected result format using Zod
+const ResultFormat = z.object({
+  green: z.array(z.string()),
+  orange: z.array(z.string()),
+  red: z.array(z.string()),
+});
+
 const app = express();
 
 app.use(cors());
@@ -54,6 +70,34 @@ app.get("/api", async (req, res) => {
     response: res,
   };
   getLinks(data);
+});
+
+// New route for OpenAI text analysis of Snippets
+app.post("/api/analyze", async (req, res) => {
+  const { text } = req.body;
+
+  try {
+    const promptText = `Summarize the following daily report into a concise analysis for a manager. Highlight the main pain points and successes, using the indicators 🟢 for positive points, 🟠 for neutral points and 🔴 for negative points. Organize the summary by key areas, and ensure each sentence begins with the appropriate indicator. Focus on providing actionable insights and overall progress. The concise analysis can not be longer than 5 bullet points and each bullet point is also concise, short and clear. Return the result in the given JSON format: "${text}"`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "system", content: promptText }],
+      response_format: zodResponseFormat(ResultFormat, "result_format"),
+    });
+
+    const result = completion.choices[0].message.content;
+
+    const parsedResult = JSON.parse(result);
+    console.log("Result:");
+    console.log(parsedResult);
+    console.log("green3:");
+    console.log(parsedResult.green)
+
+    res.status(200).json(parsedResult);
+  } catch (error) {
+    console.error("Error:", error.message);
+    res.status(500).json({ error: "Failed to analyze text" });
+  }
 });
 
 // Uses sourcing extension. Update candidate's data and stats for the sourcer

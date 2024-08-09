@@ -25,10 +25,12 @@
     "mysql": "^2.18.1",
     "node-cron": "^3.0.2",
     "nodemon": "^2.0.19",
+    "openai": "^4.55.3",
     "papaparse": "^5.4.1",
     "puppeteer": "^16.2.0",
     "urlencode": "^1.1.0",
-    "util": "^0.12.5"
+    "util": "^0.12.5",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "prisma": "^5.13.0"
