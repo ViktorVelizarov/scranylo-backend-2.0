@@ -36,11 +36,12 @@ model Snipx_Users {
 
 model SnipxSnippet {
   id        Int         @id @default(autoincrement())
-  user_id   Int?                                        // Foreign key to the Snipx_Users table
-  text      String?     @db.VarChar(1500)               // Text column with a max length of 500
-  green     Json?                                      // JSON column for green snippets
-  orange    Json?                                      // JSON column for orange snippets
-  red       Json?                                      // JSON column for red snippets
+  user_id   Int?                                   
+  text      String?     @db.VarChar(1500)             
+  sentiment_analysis      String?     @db.VarChar(1500)              
+  green     Json?                                      
+  orange    Json?                                   
+  red       Json?                             
 
   user      Snipx_Users?  @relation(fields: [user_id], references: [id])
 

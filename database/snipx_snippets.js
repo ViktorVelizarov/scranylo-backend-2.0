@@ -1,15 +1,24 @@
+const he = require('he');
 const prisma = require("../utils/prisma");
 
 // Function to add a snippet to the database
 const AddSnippet = async ({ snipx_user_id, inputText, green, orange, red }) => {
   try {
+    // Decode HTML entities and Unicode sequences in the inputText
+    const decodedText = he.decode(decodeURIComponent(inputText));
+
+    console.log("new green:");
+    console.log(green);
+    console.log("new orange:");
+    console.log(orange);
+
     const newSnippet = await prisma.snipxSnippet.create({
       data: {
         user_id: snipx_user_id,
-        text: inputText,
-        green: {},
-        orange: {},
-        red: {},
+        text: decodedText, 
+        green: green,      
+        orange: orange,    
+        red: red,          
       },
     });
     return newSnippet;
@@ -19,6 +28,7 @@ const AddSnippet = async ({ snipx_user_id, inputText, green, orange, red }) => {
   }
 };
 
+
 // Function to get all snippets
 const findAllSnippets = async () => {
   const allSnippets = await prisma.snipxSnippet.findMany({ orderBy: { id: "desc" } });
@@ -27,5 +37,5 @@ const findAllSnippets = async () => {
 
 module.exports = {
   findAllSnippets,
-  AddSnippet, // Export the new AddSnippet function
+  AddSnippet, 
 };
