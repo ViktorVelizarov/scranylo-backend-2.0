@@ -108,6 +108,31 @@ app.post("/api/analyze", async (req, res) => {
   }
 });
 
+
+// New route for OpenAI sentiment analysis of Snippets
+app.post("/api/sentimentAnalysis", async (req, res) => {
+  const { text } = req.body;
+
+  try {
+    const promptText = `Write me a sentiment analysis of this daily work snippet: "${text}"`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "system", content: promptText }],
+
+    });
+
+    const result = completion.choices[0].message.content;
+    console.log("Bresult")
+    console.log(result)
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Error:", error.message);
+    res.status(500).json({ error: "Failed to analyze text" });
+  }
+});
+
 // Uses sourcing extension. Update candidate's data and stats for the sourcer
 app.post("/api", async (req, res) => {
   const candidateData = req.body;
