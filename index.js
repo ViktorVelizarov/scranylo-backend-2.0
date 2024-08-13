@@ -21,6 +21,7 @@ const {
   findSnipxAdminByEmail,
   updateSnipxUserById,
   deleteSnipxUserById,
+  addNewSnipxUser,
 } = require("./database/snipx_user.js");
 const {
   findAllSnippets,
@@ -92,6 +93,18 @@ app.get("/api", async (req, res) => {
 app.get("/api/snipx_users", async (req, res) => {
   const allUsers = await findSnipxAllUsers();
   res.status(200).json(allUsers).end();
+});
+
+// Add a new user
+app.post("/api/snipx_users", async (req, res) => {
+  const { email, role } = req.body;
+
+  try {
+    const newUser = await addNewSnipxUser({ email, role });
+    res.status(201).json(newUser).end();
+  } catch (error) {
+    res.status(500).json({ error: "Failed to create user" }).end();
+  }
 });
 
 // Edit a user by ID
