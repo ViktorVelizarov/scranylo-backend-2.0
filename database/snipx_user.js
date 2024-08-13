@@ -20,9 +20,27 @@ const findSnipxAdminByEmail = async (adminEmail) => {
     return user;
   }
 
+  // Update a user by ID
+  const updateSnipxUserById = async (id, data) => {
+    const updatedUser = await prisma.snipx_Users.update({
+      where: { id: parseInt(id) },
+      data,
+    });
+    return updatedUser;
+  };
+  
+  // Delete a user by ID
+  const deleteSnipxUserById = async (id) => {
+    await prisma.snipx_Users.delete({
+      where: { id: parseInt(id) },
+    });
+  };
+  
   module.exports = {
     findSnipxAllUsers,
     findSnipxAdminByEmail,
-
+    updateSnipxUserById,
+    deleteSnipxUserById,
   };
+  
   

@@ -19,6 +19,8 @@ const {
 const {
   findSnipxAllUsers,
   findSnipxAdminByEmail,
+  updateSnipxUserById,
+  deleteSnipxUserById,
 } = require("./database/snipx_user.js");
 const {
   findAllSnippets,
@@ -50,10 +52,16 @@ const openai = new OpenAI({
 });
 
 // Define the expected result format using Zod
-const ResultFormat = z.object({
+const TextAnalysisFormat = z.object({
   green: z.array(z.string()),
   orange: z.array(z.string()),
   red: z.array(z.string()),
+});
+
+const SentimentrAnalysisFormat = z.object({
+  sentiment: z.string(),
+  score: z.string(),
+  explanations: z.string(),
 });
 
 const app = express();
@@ -80,6 +88,38 @@ app.get("/api", async (req, res) => {
   getLinks(data);
 });
 
+// Get all snipx_users
+app.get("/api/snipx_users", async (req, res) => {
+  const allUsers = await findSnipxAllUsers();
+  res.status(200).json(allUsers).end();
+});
+
+// Edit a user by ID
+app.put("/api/snipx_users/:id", async (req, res) => {
+  const { id } = req.params;
+  const { email, role } = req.body;
+
+  try {
+    const updatedUser = await updateSnipxUserById(id, { email, role });
+    res.status(200).json(updatedUser).end();
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update user" }).end();
+  }
+});
+
+// Delete a user by ID
+app.delete("/api/snipx_users/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await deleteSnipxUserById(id);
+    res.status(204).end();
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete user" }).end();
+  }
+});
+
+
 // New route for OpenAI text analysis of Snippets
 app.post("/api/analyze", async (req, res) => {
   const { text } = req.body;
@@ -90,7 +130,7 @@ app.post("/api/analyze", async (req, res) => {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "system", content: promptText }],
-      response_format: zodResponseFormat(ResultFormat, "result_format"),
+      response_format: zodResponseFormat(TextAnalysisFormat, "result_format"),
     });
 
     const result = completion.choices[0].message.content;
@@ -114,19 +154,22 @@ app.post("/api/sentimentAnalysis", async (req, res) => {
   const { text } = req.body;
 
   try {
-    const promptText = `Write me a sentiment analysis of this daily work snippet: "${text}"`;
+    const promptText = `Write me a sentiment analysis of this daily work snippet in json format. I want 3 fields. "sentiment" which is true or false according to if the sentiment analysis is positive or negative. "score" which is appropriate numerical value from 1 to 10 corresponding to the sentiment. And "explanations" which gives a description of the sentiment analysis: "${text}"`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "system", content: promptText }],
-
+      response_format: zodResponseFormat(SentimentrAnalysisFormat, "sentiment_format"),
     });
 
     const result = completion.choices[0].message.content;
     console.log("Bresult")
     console.log(result)
+    const parsedResult = JSON.parse(result);
+    console.log("Result:");
+    console.log(parsedResult);
 
-    res.status(200).json(result);
+    res.status(200).json(parsedResult);
   } catch (error) {
     console.error("Error:", error.message);
     res.status(500).json({ error: "Failed to analyze text" });
@@ -153,7 +196,7 @@ app.get("/api/snipx_snippets",async (req, res) => {
 
 // Handle SnipX sent snippets from users of SnipX
 app.post("/api/snipx_snippets", async (req, res) => {
-  const { snipx_user_id, inputText, green, orange, red } = req.body;
+  const { snipx_user_id, inputText, green, orange, red, explanations, score, sentiment } = req.body;
 
   // Log the received data to the console
   console.log("Received SnipX snippet data:");
@@ -163,6 +206,10 @@ app.post("/api/snipx_snippets", async (req, res) => {
   console.log("Orange Snippets:", orange);
   console.log("Red Snippets:", red);
 
+  console.log("explanations:", explanations);
+  console.log("score:", score);
+  console.log("sentiment:", sentiment);
+
   try {
     // Add the snippet to the database
     const newSnippet = await AddSnippet({
@@ -171,6 +218,9 @@ app.post("/api/snipx_snippets", async (req, res) => {
       green,
       orange,
       red,
+      explanations,
+      score,
+      sentiment
     });
 
     // Respond with the newly created snippet
@@ -327,12 +377,6 @@ app.delete("/api/all-skills", async (req, res) => {
 // Uses relevancy web. Get all users of extensions (sourcing and QA) adn relevancy web with their roles. "admin" role gives access to relevancy web and QA extension for the /users page
 app.get("/api/users", async (req, res) => {
   const allUsers = await findAllUsers();
-  res.status(200).json(allUsers).end();
-});
-
-// Get all snipx_users
-app.get("/api/snipx_users", async (req, res) => {
-  const allUsers = await findSnipxAllUsers();
   res.status(200).json(allUsers).end();
 });
 

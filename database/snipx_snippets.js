@@ -2,15 +2,11 @@ const he = require('he');
 const prisma = require("../utils/prisma");
 
 // Function to add a snippet to the database
-const AddSnippet = async ({ snipx_user_id, inputText, green, orange, red }) => {
+const AddSnippet = async ({ snipx_user_id, inputText, green, orange, red, explanations, score, sentiment}) => {
   try {
     // Decode HTML entities and Unicode sequences in the inputText
     const decodedText = he.decode(decodeURIComponent(inputText));
 
-    console.log("new green:");
-    console.log(green);
-    console.log("new orange:");
-    console.log(orange);
 
     const newSnippet = await prisma.snipxSnippet.create({
       data: {
@@ -18,7 +14,10 @@ const AddSnippet = async ({ snipx_user_id, inputText, green, orange, red }) => {
         text: decodedText, 
         green: green,      
         orange: orange,    
-        red: red,          
+        red: red,   
+        explanations: explanations,
+        score: score,
+        sentiment: sentiment       
       },
     });
     return newSnippet;

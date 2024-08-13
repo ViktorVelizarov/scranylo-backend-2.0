@@ -41,7 +41,10 @@ model SnipxSnippet {
   sentiment_analysis      String?     @db.VarChar(1500)              
   green     Json?                                      
   orange    Json?                                   
-  red       Json?                             
+  red       Json?      
+  sentiment      String?     @db.VarChar(100)  
+  score      String?     @db.VarChar(100)  
+  explanations     String?     @db.VarChar(1500)                         
 
   user      Snipx_Users?  @relation(fields: [user_id], references: [id])
 
