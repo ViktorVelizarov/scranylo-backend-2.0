@@ -26,6 +26,8 @@ const {
 const {
   findAllSnippets,
   AddSnippet,
+  updateSnippetById,
+  deleteSnippetById,
 } = require("./database/snipx_snippets.js");
 const {
   getAllJobs,
@@ -97,15 +99,16 @@ app.get("/api/snipx_users", async (req, res) => {
 
 // Add a new user
 app.post("/api/snipx_users", async (req, res) => {
-  const { email, role } = req.body;
+  const { email, role, managedBy } = req.body;
 
   try {
-    const newUser = await addNewSnipxUser({ email, role });
+    const newUser = await addNewSnipxUser({ email, role, managedBy });
     res.status(201).json(newUser).end();
   } catch (error) {
     res.status(500).json({ error: "Failed to create user" }).end();
   }
 });
+
 
 // Edit a user by ID
 app.put("/api/snipx_users/:id", async (req, res) => {
@@ -129,6 +132,48 @@ app.delete("/api/snipx_users/:id", async (req, res) => {
     res.status(204).end();
   } catch (error) {
     res.status(500).json({ error: "Failed to delete user" }).end();
+  }
+});
+
+// get all snippets from db
+app.get("/api/snipx_snippets",async (req, res) => {
+  const allSnippets = await findAllSnippets();
+  console.log("allSnippets:")
+  console.log(allSnippets)
+  res.status(200).json(allSnippets).end();
+});
+
+// Edit a snippet by ID
+app.put("/api/snipx_snippets/:id", async (req, res) => {
+  const { id } = req.params;
+  const { user_id, text, green, orange, red, explanations, score, sentiment } = req.body;
+
+  try {
+    const updatedSnippet = await updateSnippetById(id, {
+      user_id,
+      text,
+      green,
+      orange,
+      red,
+      explanations,
+      score,
+      sentiment,
+    });
+    res.status(200).json(updatedSnippet).end();
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update snippet" }).end();
+  }
+});
+
+// Delete a snippet by ID
+app.delete("/api/snipx_snippets/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await deleteSnippetById(id);
+    res.status(204).end();
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete snippet" }).end();
   }
 });
 
@@ -196,14 +241,6 @@ app.post("/api", async (req, res) => {
   console.log("api post res:")
   console.log(candidateData["response"])
   updateCandidate(candidateData);
-});
-
-// get all snippets from db
-app.get("/api/snipx_snippets",async (req, res) => {
-  const allSnippets = await findAllSnippets();
-  console.log("allSnippets:")
-  console.log(allSnippets)
-  res.status(200).json(allSnippets).end();
 });
 
 

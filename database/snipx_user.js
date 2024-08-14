@@ -61,6 +61,7 @@ const addNewSnipxUser = async (data) => {
     updateSnipxUserById,
     deleteSnipxUserById,
     addNewSnipxUser, 
+    findSnipxManagers,
   };
   
   
