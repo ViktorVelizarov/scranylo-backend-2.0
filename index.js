@@ -5,6 +5,7 @@ const admin = require("firebase-admin");
 const OpenAI = require("openai");
 const { z } = require("zod");
 const { zodResponseFormat } = require("openai/helpers/zod");
+const prisma = require("./utils/prisma");
 
 const { getAuth } = require("firebase-admin/auth");
 const { getLinks, updateCandidate } = require("./table.js");
@@ -97,6 +98,55 @@ app.get("/api/snipx_users", async (req, res) => {
   const allUsers = await findSnipxAllUsers();
   res.status(200).json(allUsers).end();
 });
+
+app.post("/api/company_users", async (req, res) => {
+  try {
+    // Step 1: Extract the user who sent the request
+    const { id } = req.body;
+    console.log("id")
+    console.log(id)
+
+    // Step 2: Find the user's company through SnipxUserCompany
+    const userCompanyRelation = await prisma.snipxUserCompany.findUnique({
+      where: { user_id: id },
+      include: { company: true },
+    });
+
+    console.log("userCompanyRelation")
+    console.log(userCompanyRelation)
+
+    if (!userCompanyRelation || !userCompanyRelation.company) {
+      return res.status(404).json({ message: "User or associated company not found" });
+    }
+
+    const companyId = userCompanyRelation.company_id;
+
+    console.log("companyId")
+    console.log(companyId)
+
+    // Step 3: Find all users associated with the same company
+    const companyUsers = await prisma.snipxUserCompany.findMany({
+      where: { company_id: companyId },
+      include: { user: true },
+    });
+
+    console.log("companyUsers")
+    console.log(companyUsers)
+
+    // Extract the users from the relations
+    const users = companyUsers.map((relation) => relation.user);
+
+    console.log("users")
+    console.log(users)
+
+    // Step 4: Return the users in the response
+    res.status(200).json(users).end();
+  } catch (error) {
+    console.error("Error fetching company users:", error);
+    res.status(500).json({ message: "Internal server error" }).end();
+  }
+});
+
 
 // Add a new user
 app.post("/api/snipx_users", async (req, res) => {

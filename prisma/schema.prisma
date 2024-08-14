@@ -25,31 +25,59 @@ model Users {
 
 
 model Snipx_Users {
-  id        Int         @id @default(autoincrement())
-  email     String?     @db.VarChar(250)
-  role      String?     @db.VarChar(100)
+  id          Int                @id @default(autoincrement())
+  email       String?            @db.VarChar(250)
+  role        String?            @db.VarChar(100)
+  managedBy   Int?               
+  manager     Snipx_Users?       @relation("ManagedBy", fields: [managedBy], references: [id])
+  subordinates Snipx_Users[]     @relation("ManagedBy")
+  snippets    SnipxSnippet[]
 
-  snippets  SnipxSnippet[]
+  // Relation to SnipxUserCompany
+  company     SnipxUserCompany?  @relation("UserToCompany")
 
   @@map("snipx_users")
 }
 
 model SnipxSnippet {
-  id        Int         @id @default(autoincrement())
-  user_id   Int?                                   
-  text      String?     @db.VarChar(1500)             
-  sentiment_analysis      String?     @db.VarChar(1500)              
-  green     Json?                                      
-  orange    Json?                                   
-  red       Json?      
-  sentiment      String?     @db.VarChar(100)  
-  score      String?     @db.VarChar(100)  
-  explanations     String?     @db.VarChar(1500)                         
+  id                   Int           @id @default(autoincrement())
+  user_id              Int?          
+  text                 String?       @db.VarChar(1500)             
+  sentiment_analysis   String?       @db.VarChar(1500)              
+  green                Json?         
+  orange               Json?         
+  red                  Json?         
+  sentiment            String?       @db.VarChar(100)  
+  score                String?       @db.VarChar(100)  
+  explanations         String?       @db.VarChar(1500)                         
 
-  user      Snipx_Users?  @relation(fields: [user_id], references: [id])
+  user                 Snipx_Users?  @relation(fields: [user_id], references: [id])
 
   @@map("snipx_snippets")
 }
+
+model Snipx_Company {
+  id            Int               @id @default(autoincrement())
+  company_name  String?           @db.VarChar(500)
+  
+  // Relation to SnipxUserCompany
+  users         SnipxUserCompany[] @relation("UserToCompany")
+
+  @@map("snipx_company")
+}
+
+model SnipxUserCompany {
+  id         Int          @id @default(autoincrement())
+  user_id    Int          @unique
+  company_id Int
+  
+  // Define relations
+  user       Snipx_Users  @relation("UserToCompany", fields: [user_id], references: [id])
+  company    Snipx_Company @relation("UserToCompany", fields: [company_id], references: [id])
+
+  @@map("snipx_user_company")
+}
+
 
 model DailyStat {
   id           Int                @id @default(autoincrement())
