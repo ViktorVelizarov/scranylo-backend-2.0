@@ -20,6 +20,15 @@ const findSnipxAdminByEmail = async (adminEmail) => {
     return user;
   }
 
+  const findSnipxUserByEmail = async (email) => {
+    const user = await prisma.snipx_Users.findFirst({
+      where: {
+        email: email,
+      }
+    });
+    return user;
+  }
+
   // find SnipX managers
 const findSnipxManagers = async () => {
   const managers = await prisma.snipx_Users.findMany({
@@ -62,6 +71,7 @@ const addNewSnipxUser = async (data) => {
     deleteSnipxUserById,
     addNewSnipxUser, 
     findSnipxManagers,
+    findSnipxUserByEmail,
   };
   
   

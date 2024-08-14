@@ -19,6 +19,7 @@ const {
 const {
   findSnipxAllUsers,
   findSnipxAdminByEmail,
+  findSnipxUserByEmail,
   updateSnipxUserById,
   deleteSnipxUserById,
   addNewSnipxUser,
@@ -159,6 +160,8 @@ app.put("/api/snipx_snippets/:id", async (req, res) => {
       score,
       sentiment,
     });
+    console.log("updatedSnippet")
+    console.log(updatedSnippet)
     res.status(200).json(updatedSnippet).end();
   } catch (error) {
     res.status(500).json({ error: "Failed to update snippet" }).end();
@@ -310,7 +313,7 @@ app.post("/api/snipx_auth/firebase", async (req, res) => {
     .verifyIdToken(idToken)
     .then(async (decodedToken) => {
       const email = decodedToken.email;
-      const result = await findSnipxAdminByEmail(email);
+      const result = await findSnipxUserByEmail(email);
       console.log("snipx admin user: ")
       console.log(result)
       res.status(200).json(result).end();

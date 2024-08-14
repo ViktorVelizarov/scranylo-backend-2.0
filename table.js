@@ -69,8 +69,19 @@ async function findLinks(JwtClient, data) {
       if (err) {
         return console.log("The API returned an error: " + err);
       }
+
+      // Fetch sourcer data by email
+      let user = await findUserByEmail(`${data.owner.toLowerCase()}@scaleup.agency`);
+
+      if (!user) {
+        user = await findUserByEmail(`${data.owner.toLowerCase()}@scaleup.vision`);
+      }
+      console.log("found user")
+      console.log(user)
       // Fetch all rules related to the current sourcer
-      const rules = await getAllRules(data.owner);
+      const rules = await getAllRules(data.owner , user.role);
+      console.log("rules:")
+      console.log(rules)
       // If there are no rules for the sourcer, then stop function as sourcer unauthorized
       if (rules.length === 0) {
         data.response.status(200);
@@ -84,14 +95,9 @@ async function findLinks(JwtClient, data) {
         data.response.end();
         return;
       }
-      // Fetch sourcer data by email
-      const user = await findUserByEmail(
-        `${data.owner.toLowerCase()}@scaleup.agency`
-      );
+
       // Fetch statistics related to the sourcer
       const stats = await getSourcerStats(user.id);
-      console.log("found user")
-      console.log(user)
       //if the user doesnt have the company_scraper permission, then return an error
       if(data.mode === "company" && user.company_scraper != "true" ){
         data.response.status(200);

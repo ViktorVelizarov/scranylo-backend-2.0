@@ -1,15 +1,16 @@
-const he = require('he');
+
 const prisma = require("../utils/prisma");
 
 // Function to add a snippet to the database
 const AddSnippet = async ({ snipx_user_id, inputText, green, orange, red, explanations, score, sentiment }) => {
   try {
-    const decodedText = he.decode(decodeURIComponent(inputText));
+
+    const cleanedText = inputText ? inputText.replace(/<\/?[^>]+(>|$)/g, "") : "";
 
     const newSnippet = await prisma.snipxSnippet.create({
       data: {
         user_id: snipx_user_id,
-        text: decodedText,
+        text: cleanedText,
         green: green,
         orange: orange,
         red: red,
@@ -38,7 +39,7 @@ const updateSnippetById = async (id, { user_id, text, green, orange, red, explan
       where: { id: parseInt(id) },
       data: {
         user_id,
-        text: he.decode(decodeURIComponent(text)),
+        text,
         green,
         orange,
         red,
@@ -47,6 +48,8 @@ const updateSnippetById = async (id, { user_id, text, green, orange, red, explan
         sentiment
       },
     });
+    console.log("in function:")
+    console.log(updatedSnippet)
     return updatedSnippet;
   } catch (error) {
     console.error("Error updating snippet:", error);

@@ -2,13 +2,19 @@ const { checkUsers } = require("./user");
 const prisma = require("../utils/prisma");
 
 // This function is used to get all job rules (jobs) owned by a specific user or if user is an admin, then get all rules. Function used by sourcing extension
-const getAllRules = async (ownerName) => {
+const getAllRules = async (ownerName, role) => {
+  console.log("ownerName:")
+  console.log(ownerName)
+  console.log("role:")
+  console.log(role)
   // Fetch all jobs
   const jobs = await getAllJobs();
+  console.log("all jobs:")
+  console.log(jobs)
   const updatedJobs = [];
   for (let i in jobs) {
     // Check if user was added to the job or if the user is admin
-    if (jobs[i].owners.includes(ownerName) || ownerName === "admin") {
+    if (jobs[i].owners.includes(ownerName) || role === "admin") {
       let updatedJob = {};
       updatedJob = { ...jobs[i] };
       // convert array of values to the regexes for scraping in the extension
