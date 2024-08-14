@@ -150,13 +150,38 @@ app.post("/api/company_users", async (req, res) => {
 
 // Add a new user
 app.post("/api/snipx_users", async (req, res) => {
-  const { email, role, managedBy } = req.body;
-
+  const { email, role, managedBy, currentUserID } = req.body;
+  console.log("currentUserID:", currentUserID);
+  
   try {
+    // Step 1: Find the company of the currentUserID
+    const currentUserCompany = await prisma.snipxUserCompany.findUnique({
+      where: { user_id: currentUserID },
+    });
+    console.log("currentUserCompany")
+    console.log(currentUserCompany)
+
+    if (!currentUserCompany) {
+      return res.status(404).json({ error: "Current user or their company not found" }).end();
+    }
+
+    const companyId = currentUserCompany.company_id;
+
+    // Step 2: Create the new user
     const newUser = await addNewSnipxUser({ email, role, managedBy });
+
+    // Step 3: Link the new user to the same company
+    await prisma.snipxUserCompany.create({
+      data: {
+        user_id: newUser.id,
+        company_id: companyId,
+      },
+    });
+
     res.status(201).json(newUser).end();
   } catch (error) {
-    res.status(500).json({ error: "Failed to create user" }).end();
+    console.error("Failed to create user or link to company:", error);
+    res.status(500).json({ error: "Failed to create user and link to company" }).end();
   }
 });
 
