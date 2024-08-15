@@ -2,11 +2,12 @@
 const prisma = require("../utils/prisma");
 
 // Function to add a snippet to the database
-const AddSnippet = async ({ snipx_user_id, date,  inputText, green, orange, red, explanations, score, sentiment }) => {
+const AddSnippet = async ({ snipx_user_id, type,  date,  inputText, green, orange, red, explanations, score, sentiment }) => {
   try {
 
     const cleanedText = inputText ? inputText.replace(/<\/?[^>]+(>|$)/g, "") : "";
-
+    console.log("type in addSnippet:")
+    console.log(type)
     const now = new Date();
     console.log("now", now)
     const currentDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -14,6 +15,7 @@ const AddSnippet = async ({ snipx_user_id, date,  inputText, green, orange, red,
     const newSnippet = await prisma.snipxSnippet.create({
       data: {
         user_id: snipx_user_id,
+        type: type,
         date: currentDate,
         text: cleanedText,
         green: green,
@@ -66,7 +68,10 @@ const updateSnippetById = async (id, { user_id, text, green, orange, red, explan
 const findSnippetsByUserId = async (userId) => {
   try {
     const userSnippets = await prisma.snipxSnippet.findMany({
-      where: { user_id: parseInt(userId) },
+      where: {
+        user_id: parseInt(userId),
+        type: "daily"  //user can only chose daily snippets to make a weekly report of
+    },
       orderBy: { id: "desc" },
     });
     return userSnippets;

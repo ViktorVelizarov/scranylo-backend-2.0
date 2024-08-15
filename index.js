@@ -415,10 +415,11 @@ app.post("/api", async (req, res) => {
 
 // Handle SnipX sent snippets from users of SnipX
 app.post("/api/snipx_snippets", async (req, res) => {
-  const { snipx_user_id, inputText, date, green, orange, red, explanations, score, sentiment } = req.body;
+  const { snipx_user_id, type, inputText, date, green, orange, red, explanations, score, sentiment } = req.body;
   // Log the received data to the console
   console.log("Received SnipX snippet data:");
   console.log("user_id:", snipx_user_id);
+  console.log("type:", type);
   console.log("date", date)
   console.log("Input Text:", inputText);
   console.log("Green Snippets:", green);
@@ -433,6 +434,7 @@ app.post("/api/snipx_snippets", async (req, res) => {
     // Add the snippet to the database
     const newSnippet = await AddSnippet({
       snipx_user_id,
+      type,
       date,
       inputText,
       green,
