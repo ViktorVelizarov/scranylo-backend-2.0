@@ -2,14 +2,19 @@
 const prisma = require("../utils/prisma");
 
 // Function to add a snippet to the database
-const AddSnippet = async ({ snipx_user_id, inputText, green, orange, red, explanations, score, sentiment }) => {
+const AddSnippet = async ({ snipx_user_id, date,  inputText, green, orange, red, explanations, score, sentiment }) => {
   try {
 
     const cleanedText = inputText ? inputText.replace(/<\/?[^>]+(>|$)/g, "") : "";
 
+    const now = new Date();
+    console.log("now", now)
+    const currentDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    console.log( "current date" ,currentDate)
     const newSnippet = await prisma.snipxSnippet.create({
       data: {
         user_id: snipx_user_id,
+        date: currentDate,
         text: cleanedText,
         green: green,
         orange: orange,
@@ -57,6 +62,21 @@ const updateSnippetById = async (id, { user_id, text, green, orange, red, explan
   }
 };
 
+// Function to get all snippets for a specific user by their ID
+const findSnippetsByUserId = async (userId) => {
+  try {
+    const userSnippets = await prisma.snipxSnippet.findMany({
+      where: { user_id: parseInt(userId) },
+      orderBy: { id: "desc" },
+    });
+    return userSnippets;
+  } catch (error) {
+    console.error("Error fetching snippets for user:", error);
+    throw error;
+  }
+};
+
+
 // Function to delete a snippet by ID
 const deleteSnippetById = async (id) => {
   try {
@@ -69,9 +89,14 @@ const deleteSnippetById = async (id) => {
   }
 };
 
+
+
 module.exports = {
   findAllSnippets,
   AddSnippet,
+  findSnippetsByUserId,
   updateSnippetById,
   deleteSnippetById,
+  
+  
 };

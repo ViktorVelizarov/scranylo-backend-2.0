@@ -28,8 +28,10 @@ const {
 const {
   findAllSnippets,
   AddSnippet,
+  findSnippetsByUserId,
   updateSnippetById,
   deleteSnippetById,
+  
 } = require("./database/snipx_snippets.js");
 const {
   getAllJobs,
@@ -219,6 +221,29 @@ app.get("/api/snipx_snippets",async (req, res) => {
   res.status(200).json(allSnippets).end();
 });
 
+// Get snippets by user ID
+app.post("/api/snipx_snippets/user", async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: "User ID is required" }).end();
+    }
+
+    const userSnippets = await findSnippetsByUserId(id);
+    console.log("User Snippets:", userSnippets);
+
+    if (userSnippets.length === 0) {
+      return res.status(404).json({ message: "No snippets found for this user" }).end();
+    }
+
+    res.status(200).json(userSnippets).end();
+  } catch (error) {
+    console.error("Error fetching user snippets:", error);
+    res.status(500).json({ error: "Internal Server Error" }).end();
+  }
+});
+
 // Edit a snippet by ID
 app.put("/api/snipx_snippets/:id", async (req, res) => {
   const { id } = req.params;
@@ -261,7 +286,7 @@ app.post("/api/analyze", async (req, res) => {
   const { text } = req.body;
 
   try {
-    const promptText = `Summarize the following daily report into a concise analysis for a manager. Highlight the main pain points and successes, using the indicators 🟢 for positive points, 🟠 for neutral points and 🔴 for negative points. Organize the summary by key areas, and ensure each sentence begins with the appropriate indicator. Focus on providing actionable insights and overall progress. The concise analysis can not be longer than 5 bullet points and each bullet point is also concise, short and clear. Return the result in the given JSON format: "${text}"`;
+    const promptText = `Summarize the following daily report into a concise analysis for a manager. Highlight the main pain points and successes, using the indicators 🟢 for positive points, 🟠 for neutral points and 🔴 for negative points. Organize the summary by key areas, and ensure each sentence begins with the appropriate indicator. Focus on providing actionable insights and overall progress. The concise analysis can not be longer than 5 bullet points and each bullet point is also concise, short and clear. DONT put any emojis in the text! Return the result in the given JSON format: "${text}"`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -290,7 +315,7 @@ app.post("/api/sentimentAnalysis", async (req, res) => {
   const { text } = req.body;
 
   try {
-    const promptText = `Write me a sentiment analysis of this daily work snippet in json format. I want 3 fields. "sentiment" which is true or false according to if the sentiment analysis is positive or negative. "score" which is appropriate numerical value from 1 to 10 corresponding to the sentiment. And "explanations" which gives a description of the sentiment analysis: "${text}"`;
+    const promptText = `Write me a sentiment analysis of this daily work snippet in json format. I want 3 fields. The first field is "sentiment" which is true or false according to if the sentiment analysis is positive or negative.The second field is "score" which is JUST A NUMBER value from 1 to 10 corresponding to the sentiment. The third field is "explanations" which gives a description of the sentiment analysis: "${text}"`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -324,11 +349,11 @@ app.post("/api", async (req, res) => {
 
 // Handle SnipX sent snippets from users of SnipX
 app.post("/api/snipx_snippets", async (req, res) => {
-  const { snipx_user_id, inputText, green, orange, red, explanations, score, sentiment } = req.body;
-
+  const { snipx_user_id, inputText, date, green, orange, red, explanations, score, sentiment } = req.body;
   // Log the received data to the console
   console.log("Received SnipX snippet data:");
   console.log("user_id:", snipx_user_id);
+  console.log("date", date)
   console.log("Input Text:", inputText);
   console.log("Green Snippets:", green);
   console.log("Orange Snippets:", orange);
@@ -342,6 +367,7 @@ app.post("/api/snipx_snippets", async (req, res) => {
     // Add the snippet to the database
     const newSnippet = await AddSnippet({
       snipx_user_id,
+      date,
       inputText,
       green,
       orange,

@@ -39,23 +39,6 @@ model Snipx_Users {
   @@map("snipx_users")
 }
 
-model SnipxSnippet {
-  id                   Int           @id @default(autoincrement())
-  user_id              Int?          
-  text                 String?       @db.VarChar(1500)             
-  sentiment_analysis   String?       @db.VarChar(1500)              
-  green                Json?         
-  orange               Json?         
-  red                  Json?         
-  sentiment            String?       @db.VarChar(100)  
-  score                String?       @db.VarChar(100)  
-  explanations         String?       @db.VarChar(1500)                         
-
-  user                 Snipx_Users?  @relation(fields: [user_id], references: [id])
-
-  @@map("snipx_snippets")
-}
-
 model Snipx_Company {
   id            Int               @id @default(autoincrement())
   company_name  String?           @db.VarChar(500)
@@ -76,6 +59,25 @@ model SnipxUserCompany {
   company    Snipx_Company @relation("UserToCompany", fields: [company_id], references: [id])
 
   @@map("snipx_user_company")
+}
+
+
+model SnipxSnippet {
+  id                   Int           @id @default(autoincrement())
+  user_id              Int?          
+  date               DateTime?    @db.Date
+  text                 String?       @db.VarChar(1500)             
+  sentiment_analysis   String?       @db.VarChar(1500)              
+  green                Json?         
+  orange               Json?         
+  red                  Json?         
+  sentiment            String?       @db.VarChar(100)  
+  score                String?       @db.VarChar(100)  
+  explanations         String?       @db.VarChar(1500)                         
+
+  user                 Snipx_Users?  @relation(fields: [user_id], references: [id])
+
+  @@map("snipx_snippets")
 }
 
 
