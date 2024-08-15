@@ -280,6 +280,72 @@ app.delete("/api/snipx_snippets/:id", async (req, res) => {
   }
 });
 
+app.post("/api/weeklySnippet", async (req, res) => {
+  const { snippetIds } = req.body;
+  console.log("snippetIds:", snippetIds);
+
+  // Check if snippetIds is provided and is an array
+  if (!Array.isArray(snippetIds) || snippetIds.length === 0) {
+      return res.status(400).json({ error: "Snippet IDs are required and should be an array." });
+  }
+
+  try {
+      // Convert snippetIds from strings to integers
+      const snippetIdsInt = snippetIds.map(id => parseInt(id, 10));
+      console.log("Converted snippet IDs:", snippetIdsInt);
+
+      // Fetch the snippets based on the provided IDs
+      const snippets = await prisma.snipxSnippet.findMany({
+          where: {
+              id: { in: snippetIdsInt } // Use the integer IDs here
+          },
+          select: {
+              text: true, // Select the text field
+              date: true  // Also select the date field
+          }
+      });
+      console.log("chosen snippets:", snippets);
+
+      // Extract the text values and dates from the snippets
+      const snippetDetails = snippets.map(snippet => ({
+          text: snippet.text,
+          date: snippet.date ? snippet.date.toISOString().split('T')[0] : null // Format date as YYYY-MM-DD
+      })).filter(detail => detail.text && detail.date); // Filter out any snippets without text or date
+
+      console.log("snippet details:", snippetDetails);
+
+      if (snippetDetails.length === 0) {
+          return res.status(404).json({ error: "No snippets found for the provided IDs." });
+      }
+
+      // Prepare the prompt for OpenAI
+      const promptText = `
+          I will give you the snippets for 5 days where I say what tasks I worked on during the week on my job.
+          Can you summarize the 5 days and create a snippet for the whole week as a weekly report?
+          Here are the snippets with their corresponding dates:
+          ${snippetDetails.map(detail => `${detail.date}: ${detail.text}`).join(' ')}
+      `;
+
+      console.log("Prompt for OpenAI:", promptText);
+
+      // Make a request to OpenAI with the prompt
+      const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "system", content: promptText }],
+      });
+
+      const result = completion.choices[0].message.content;
+
+      console.log("weeklyReport result:", result);
+
+      res.status(200).json({ weeklyReport: result });
+  } catch (error) {
+      console.error("Error:", error.message);
+      res.status(500).json({ error: "Failed to create weekly report" });
+  }
+});
+
+
 
 // New route for OpenAI text analysis of Snippets
 app.post("/api/analyze", async (req, res) => {
