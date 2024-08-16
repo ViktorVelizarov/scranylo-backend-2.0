@@ -43,7 +43,7 @@ model SnipxSnippet {
   id                   Int           @id @default(autoincrement())
   user_id              Int?          
   type            String?       @db.VarChar(100)  
-  date               DateTime?    @db.Date
+  date              String?       @db.VarChar(250) 
   text                 String?       @db.VarChar(1500)             
   sentiment_analysis   String?       @db.VarChar(1500)              
   green                Json?         

@@ -455,9 +455,12 @@ app.post("/api/analyze", async (req, res) => {
 // New route for OpenAI sentiment analysis of Snippets
 app.post("/api/sentimentAnalysis", async (req, res) => {
   const { text } = req.body;
-
+  console.log("in /api/sentimentAnalysis")
   try {
-    const promptText = `Write me a sentiment analysis of this daily work snippet in json format. I want 3 fields. The first field is "sentiment" which is true or false according to if the sentiment analysis is positive or negative.The second field is "score" which is JUST A NUMBER value from 1 to 10 corresponding to the sentiment. The third field is "explanations" which gives a description of the sentiment analysis: "${text}"`;
+    const promptText = `Write me a sentiment analysis of this daily work snippet in json format.
+     I want 3 fields. The first field is "sentiment" which is true or false according to if the sentiment analysis
+      is positive or negative.The second field is "score" which is JUST A NUMBER value from 1 to 10 corresponding
+       to the sentiment. The third field is "explanations" which gives a description of the sentiment analysis: "${text}"`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
