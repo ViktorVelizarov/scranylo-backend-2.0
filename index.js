@@ -31,6 +31,7 @@ const {
   findSnippetsByUserId,
   updateSnippetById,
   deleteSnippetById,
+  findDailySnippetsByUserId,
   
 } = require("./database/snipx_snippets.js");
 const {
@@ -243,6 +244,30 @@ app.post("/api/snipx_snippets/user", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" }).end();
   }
 });
+
+// Get only daily snippets by user ID
+app.post("/api/snipx_snippets/user_daily", async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: "User ID is required" }).end();
+    }
+
+    const userSnippets = await findDailySnippetsByUserId(id);
+    console.log("User Snippets:", userSnippets);
+
+    if (userSnippets.length === 0) {
+      return res.status(404).json({ message: "No snippets found for this user" }).end();
+    }
+
+    res.status(200).json(userSnippets).end();
+  } catch (error) {
+    console.error("Error fetching user snippets:", error);
+    res.status(500).json({ error: "Internal Server Error" }).end();
+  }
+});
+
 
 // Edit a snippet by ID
 app.put("/api/snipx_snippets/:id", async (req, res) => {

@@ -70,6 +70,23 @@ const findSnippetsByUserId = async (userId) => {
     const userSnippets = await prisma.snipxSnippet.findMany({
       where: {
         user_id: parseInt(userId),
+    },
+      orderBy: { id: "desc" },
+    });
+    return userSnippets;
+  } catch (error) {
+    console.error("Error fetching snippets for user:", error);
+    throw error;
+  }
+};
+
+
+// Function to get all daily snippets for a specific user by their ID
+const findDailySnippetsByUserId = async (userId) => {
+  try {
+    const userSnippets = await prisma.snipxSnippet.findMany({
+      where: {
+        user_id: parseInt(userId),
         type: "daily"  //user can only chose daily snippets to make a weekly report of
     },
       orderBy: { id: "desc" },
@@ -102,6 +119,6 @@ module.exports = {
   findSnippetsByUserId,
   updateSnippetById,
   deleteSnippetById,
-  
+  findDailySnippetsByUserId,
   
 };
