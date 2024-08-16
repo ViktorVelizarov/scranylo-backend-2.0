@@ -222,6 +222,57 @@ app.get("/api/snipx_snippets",async (req, res) => {
   res.status(200).json(allSnippets).end();
 });
 
+app.post("/api/company_snippets", async (req, res) => {
+  try {
+    // Step 1: Extract the user ID from the request body
+    const { id } = req.body;
+    console.log("id:", id);
+
+    // Step 2: Find the user's company through SnipxUserCompany
+    const userCompanyRelation = await prisma.snipxUserCompany.findUnique({
+      where: { user_id: id },
+      include: { company: true },
+    });
+
+    console.log("userCompanyRelation:", userCompanyRelation);
+
+    if (!userCompanyRelation || !userCompanyRelation.company) {
+      return res.status(404).json({ message: "User or associated company not found" });
+    }
+
+    const companyId = userCompanyRelation.company_id;
+    console.log("companyId:", companyId);
+
+    // Step 3: Find all users associated with the same company
+    const companyUsers = await prisma.snipxUserCompany.findMany({
+      where: { company_id: companyId },
+      select: { user_id: true },
+    });
+
+    const userIds = companyUsers.map((relation) => relation.user_id);
+    console.log("userIds in company:", userIds);
+
+    // Step 4: Find all snippets associated with the users in that company
+    const companySnippets = await prisma.snipxSnippet.findMany({
+      where: {
+        user_id: {
+          in: userIds,
+        },
+      },
+    });
+
+    console.log("companySnippets:", companySnippets);
+
+    // Step 5: Return the snippets in the response
+    res.status(200).json(companySnippets).end();
+  } catch (error) {
+    console.error("Error fetching company snippets:", error);
+    res.status(500).json({ message: "Internal server error" }).end();
+  }
+});
+
+
+
 // Get snippets by user ID
 app.post("/api/snipx_snippets/user", async (req, res) => {
   try {
