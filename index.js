@@ -68,7 +68,7 @@ const TextAnalysisFormat = z.object({
 
 const SentimentrAnalysisFormat = z.object({
   sentiment: z.string(),
-  score: z.string(),
+  score: z.number().int(),
   explanations: z.string(),
 });
 

@@ -6,6 +6,7 @@ const AddSnippet = async ({ snipx_user_id, type,  date,  inputText, green, orang
   try {
 
     const cleanedText = inputText ? inputText.replace(/<\/?[^>]+(>|$)/g, "") : "";
+    console.log("score", score)
     console.log("received date:" , date)
     console.log("type in addSnippet:")
     console.log(type)
@@ -23,7 +24,7 @@ const AddSnippet = async ({ snipx_user_id, type,  date,  inputText, green, orang
         orange: orange,
         red: red,
         explanations: explanations,
-        score: score,
+        score: score.toString(),
         sentiment: sentiment
       },
     });
