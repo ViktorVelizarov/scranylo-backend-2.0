@@ -155,7 +155,7 @@ app.post("/api/company_users", async (req, res) => {
 app.post("/api/snipx_users", async (req, res) => {
   const { email, role, managedBy, currentUserID } = req.body;
   console.log("currentUserID:", currentUserID);
-  
+  console.log("managedBy", managedBy)
   try {
     // Step 1: Find the company of the currentUserID
     const currentUserCompany = await prisma.snipxUserCompany.findUnique({
@@ -192,10 +192,10 @@ app.post("/api/snipx_users", async (req, res) => {
 // Edit a user by ID
 app.put("/api/snipx_users/:id", async (req, res) => {
   const { id } = req.params;
-  const { email, role } = req.body;
-
+  const { email, role, managedBy } = req.body;
+  console.log("managedBy edit:", managedBy)
   try {
-    const updatedUser = await updateSnipxUserById(id, { email, role });
+    const updatedUser = await updateSnipxUserById(id, { email, role, managedBy });
     res.status(200).json(updatedUser).end();
   } catch (error) {
     res.status(500).json({ error: "Failed to update user" }).end();
@@ -245,7 +245,12 @@ app.post("/api/company_snippets", async (req, res) => {
 
     // Step 3: Find all users associated with the same company
     const companyUsers = await prisma.snipxUserCompany.findMany({
-      where: { company_id: companyId },
+      where: {
+        company_id: companyId,
+        user: {           // This condition relates to the associated Snipx_Users model
+          managedBy: id    // Check if the managedBy field is equal to 1
+        }
+      },
       select: { user_id: true },
     });
 

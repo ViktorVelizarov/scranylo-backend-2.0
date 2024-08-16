@@ -41,6 +41,7 @@ const findSnipxManagers = async () => {
 
   // Update a user by ID
   const updateSnipxUserById = async (id, data) => {
+    console.log("data in edit:", data)
     const updatedUser = await prisma.snipx_Users.update({
       where: { id: parseInt(id) },
       data,
@@ -57,6 +58,7 @@ const findSnipxManagers = async () => {
 
   // Create a new user
 const addNewSnipxUser = async (data) => {
+  console.log("add new user data:", data)
   const newUser = await prisma.snipx_Users.create({
     data,
   });
