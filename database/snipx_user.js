@@ -29,6 +29,18 @@ const findSnipxAdminByEmail = async (adminEmail) => {
     return user;
   }
 
+  const findSnipxUserByID = async (id) => {
+    console.log("id in findById:", id)
+    console.log("type", typeof id.toInt())
+    const user = await prisma.snipx_Users.findFirst({
+      where: {
+        id: id.toInt(),
+      }
+    });
+    console.log("found user", user)
+    return user;
+  }
+
   // find SnipX managers
 const findSnipxManagers = async () => {
   const managers = await prisma.snipx_Users.findMany({
@@ -49,12 +61,14 @@ const findSnipxManagers = async () => {
     return updatedUser;
   };
   
-  // Delete a user by ID
-  const deleteSnipxUserById = async (id) => {
-    await prisma.snipx_Users.delete({
-      where: { id: parseInt(id) },
-    });
-  };
+  // Set a user's role to "deleted" by ID
+const deleteSnipxUserById = async (id) => {
+  console.log("userId in delete:", id);
+  await prisma.snipx_Users.update({
+    where: { id: parseInt(id) },
+    data: { role: "deleted" },
+  });
+};
 
   // Create a new user
 const addNewSnipxUser = async (data) => {
@@ -74,6 +88,7 @@ const addNewSnipxUser = async (data) => {
     addNewSnipxUser, 
     findSnipxManagers,
     findSnipxUserByEmail,
+    findSnipxUserByID,
   };
   
   

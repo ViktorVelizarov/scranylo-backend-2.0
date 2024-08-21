@@ -32,6 +32,7 @@ const updateUserById = async (data) => {
 
 // delete selected user, function used by relevancy web on the /users page
 const deleteUserById = async (userId) => {
+  console.log("userId in delete:", userId)
   const deletedUser = await prisma.users.delete({
     where: { id: parseInt(userId) },
   });

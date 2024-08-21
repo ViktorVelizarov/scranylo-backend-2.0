@@ -21,6 +21,7 @@ const {
   findSnipxAllUsers,
   findSnipxAdminByEmail,
   findSnipxUserByEmail,
+  findSnipxUserByID,
   updateSnipxUserById,
   deleteSnipxUserById,
   addNewSnipxUser,
@@ -185,6 +186,20 @@ app.post("/api/snipx_users", async (req, res) => {
   } catch (error) {
     console.error("Failed to create user or link to company:", error);
     res.status(500).json({ error: "Failed to create user and link to company" }).end();
+  }
+});
+
+// Find a user by ID
+app.post("/api/snipx_users/:id", async (req, res) => {
+  const { id } = req.params;
+
+  console.log("find by id id:", id)
+  try {
+    const foundUser = await findSnipxUserByID(id);
+    console.log("foundUser:", foundUser)
+    res.status(200).json(foundUser).end();
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update user" }).end();
   }
 });
 
@@ -382,15 +397,15 @@ app.post("/api/weeklySnippet", async (req, res) => {
           },
           select: {
               text: true, // Select the text field
-              date: true  // Also select the date field
+              date: true,  // Also select the date field
+              score: true
           }
       });
       console.log("chosen snippets:", snippets);
-
       // Extract the text values and dates from the snippets
       const snippetDetails = snippets.map(snippet => ({
           text: snippet.text,
-          date: snippet.date ? snippet.date.toISOString().split('T')[0] : null // Format date as YYYY-MM-DD
+          date: snippet.date ? snippet.date : null // Format date as YYYY-MM-DD
       })).filter(detail => detail.text && detail.date); // Filter out any snippets without text or date
 
       console.log("snippet details:", snippetDetails);
@@ -433,12 +448,25 @@ app.post("/api/analyze", async (req, res) => {
   const { text } = req.body;
 
   try {
-    const promptText = `Summarize the following daily report into a concise analysis for a manager. Highlight the main pain points and successes, using the indicators 🟢 for positive points, 🟠 for neutral points and 🔴 for negative points. Organize the summary by key areas, and ensure each sentence begins with the appropriate indicator. Focus on providing actionable insights and overall progress. The concise analysis can not be longer than 5 bullet points and each bullet point is also concise, short and clear. DONT put any emojis in the text! Return the result in the given JSON format: "${text}"`;
+    const promptText = `You are a professional reporting and journaling tool. You will receive a daily report from and employee and your job is to summarize the daily report into a concise analysis for a manager. 
+
+Highlight the main pain points and successes, using the following indicators 
+GREEN: for positive points
+ORANGE: for neutral points
+RED: for negative points
+
+Organize the summary by key areas, and ensure each sentence begins with the appropriate indicator. Focus on providing actionable insights and overall progress. The concise analysis can not be longer than 5 sentences and each sentence is also concise, short and clear. 
+
+DON'T put any emojis in the text! 
+
+OUTPUT:
+Always return the result in a JSON format.: "${text}"`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "system", content: promptText }],
       response_format: zodResponseFormat(TextAnalysisFormat, "result_format"),
+      temperature: 0.15, // Adjust temperature here
     });
 
     const result = completion.choices[0].message.content;
