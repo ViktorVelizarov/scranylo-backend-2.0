@@ -7,6 +7,8 @@ const { z } = require("zod");
 const { zodResponseFormat } = require("openai/helpers/zod");
 const prisma = require("./utils/prisma");
 
+const { google } = require("googleapis");
+
 const { getAuth } = require("firebase-admin/auth");
 const { getLinks, updateCandidate } = require("./table.js");
 const { getQAPath, qaUpdate } = require("./table-qa");
@@ -79,10 +81,160 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
+const keyFilePath = require("./credentials2.json");
+
+console.log("keyFilePath:")
+console.log(keyFilePath)
+
+
+// Initialize the Google Auth client
+const auth = new google.auth.GoogleAuth({
+  credentials: keyFilePath,
+  scopes: ['https://www.googleapis.com/auth/documents', 'https://www.googleapis.com/auth/drive'],
+});
+
+// Google Docs API instance
+const docs = google.docs({ version: 'v1', auth });
+const drive = google.drive({ version: 'v3', auth });
+
+// Helper function to create or update a Google Doc
+async function createOrUpdateGoogleDoc(user, snippets) {
+  // Create a new document title based on user email
+  const docTitle = `Snippets for ${user.email}`;
+  let documentId = null;
+
+  console.log(`Processing user: ${user.email}`);
+
+  try {
+    // Check if the document already exists
+    const res = await drive.files.list({
+      q: `name='${docTitle}' and mimeType='application/vnd.google-apps.document'`,
+      fields: 'files(id, name)',
+    });
+
+    if (res.data.files && res.data.files.length > 0) {
+      // Document exists, get the ID
+      documentId = res.data.files[0].id;
+      console.log(`Document already exists for ${user.email}, updating document with ID: ${documentId}`);
+    } else {
+      // Create a new document
+      const createResponse = await docs.documents.create({
+        requestBody: {
+          title: docTitle,
+        },
+      });
+      documentId = createResponse.data.documentId;
+      console.log(`Created new document for ${user.email} with ID: ${documentId}`);
+    }
+
+    // Prepare the content for the document
+    const content = snippets.map(snippet => ({
+      insertText: {
+        text: `${snippet.date}\nType: ${snippet.type}\nGreen: ${snippet.green}\nOrange: ${snippet.orange}\nRed: ${snippet.red}\nSentiment: ${snippet.sentiment}\nScore: ${snippet.score}\nExplanations: ${snippet.explanations}\n\n`,
+        location: {
+          index: 1,
+        },
+      },
+    }));
+
+    if (content.length > 0) {
+      // Retrieve the current document length
+      const docRes = await docs.documents.get({
+        documentId: documentId,
+      });
+      const docLength = docRes.data.body.content.reduce((length, element) => {
+        if (element.paragraph) {
+          length += (element.paragraph.elements || []).reduce((pLength, e) => pLength + (e.textRun ? e.textRun.content.length : 0), 0);
+        }
+        return length;
+      }, 0);
+
+      // Define the endIndex for deleteContentRange, ensuring it's within bounds
+      const endIndex = Math.min(1000000, docLength); // Avoid overly large endIndex
+
+      // Clear the existing content and update with new snippets
+      console.log(`Clearing existing content and updating with new snippets for ${user.email}`);
+      await docs.documents.batchUpdate({
+        documentId: documentId,
+        requestBody: {
+          requests: [
+            {
+              deleteContentRange: {
+                range: {
+                  startIndex: 1,
+                  endIndex: endIndex,
+                },
+              },
+            },
+            ...content,
+          ],
+        },
+      });
+    } else {
+      // No content to insert
+      console.log(`No snippets found for ${user.email}. Document created but no updates needed.`);
+    }
+
+    // Share the document with a specific email
+    await drive.permissions.create({
+      fileId: documentId,
+      requestBody: {
+        role: 'writer', // Or 'reader' depending on your needs
+        type: 'user',
+        emailAddress: 'webs@scaleup.agency',
+      },
+    });
+
+    console.log(`Successfully processed document for ${user.email} and shared with webs@scaleup.agency`);
+    return documentId;
+  } catch (error) {
+    console.error(`Error processing document for ${user.email}:`, error);
+    throw error;
+  }
+}
+
+// API endpoint to create or update Google Docs with snippets
+app.post('/api/update-google-docs', async (req, res) => {
+  try {
+    console.log('Received request to update Google Docs.');
+
+    // Get all users
+    const users = await prisma.snipx_Users.findMany();
+    console.log(`Found ${users.length} users in the database.`);
+
+    for (const user of users) {
+      // Get all snippets for the user
+      const snippets = await prisma.snipxSnippet.findMany({
+        where: { user_id: user.id },
+      });
+      console.log(`Found ${snippets.length} snippets for user ${user.email}.`);
+
+      // Create or update the Google Doc for the user
+      await createOrUpdateGoogleDoc(user, snippets);
+    }
+
+    console.log('All Google Docs updated successfully.');
+    res.status(200).send('Google Docs updated successfully.');
+  } catch (error) {
+    console.error('Error updating Google Docs:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+
+
+
+
 // inicialize app to use Firebase services
 const serviceAccount = require("./firebaseAccountKey.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
+});
+
+// Get all snipx_users
+app.get("/api/snipx_users", async (req, res) => {
+  const allUsers = await findSnipxAllUsers();
+  res.status(200).json(allUsers).end();
 });
 
 // Uses sourcing extension. Get link to the next/previous candidate in the spreadsheet, rules, stats and all skills for the sourcer
@@ -97,11 +249,7 @@ app.get("/api", async (req, res) => {
   getLinks(data);
 });
 
-// Get all snipx_users
-app.get("/api/snipx_users", async (req, res) => {
-  const allUsers = await findSnipxAllUsers();
-  res.status(200).json(allUsers).end();
-});
+
 
 app.post("/api/company_users", async (req, res) => {
   try {
