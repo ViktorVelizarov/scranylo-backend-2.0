@@ -36,26 +36,10 @@ model Snipx_Users {
   // Relation to SnipxUserCompany
   company     SnipxUserCompany?  @relation("UserToCompany")
 
+  // New relation to SnipxUserTeam for teams
+  userTeams   SnipxUserTeam[]    @relation("UserToTeam")
+
   @@map("snipx_users")
-}
-
-model SnipxSnippet {
-  id                   Int           @id @default(autoincrement())
-  user_id              Int?          
-  type            String?       @db.VarChar(100)  
-  date              String?       @db.VarChar(250) 
-  text                 String?       @db.VarChar(1500)             
-  sentiment_analysis   String?       @db.VarChar(1500)              
-  green                Json?         
-  orange               Json?         
-  red                  Json?         
-  sentiment            String?       @db.VarChar(100)  
-  score                String?       @db.VarChar(100)  
-  explanations         String?       @db.VarChar(1500)                         
-
-  user                 Snipx_Users?  @relation(fields: [user_id], references: [id])
-
-  @@map("snipx_snippets")
 }
 
 model Snipx_Company {
@@ -64,6 +48,9 @@ model Snipx_Company {
   
   // Relation to SnipxUserCompany
   users         SnipxUserCompany[] @relation("UserToCompany")
+
+  // New relation to SnipxTeams for teams
+  teams         SnipxTeams[]       @relation("CompanyToTeams")
 
   @@map("snipx_company")
 }
@@ -79,6 +66,56 @@ model SnipxUserCompany {
 
   @@map("snipx_user_company")
 }
+
+model SnipxTeams {
+  id          Int            @id @default(autoincrement())
+  team_name   String         @db.VarChar(250)
+  company_id  Int
+
+  // Relation to Snipx_Company
+  company     Snipx_Company  @relation("CompanyToTeams", fields: [company_id], references: [id])
+  
+  // Relation to SnipxUserTeam for team members
+  teamMembers SnipxUserTeam[] @relation("TeamToMembers")
+
+  @@map("snipx_teams")
+}
+
+model SnipxUserTeam {
+  id       Int           @id @default(autoincrement())
+  user_id  Int
+  team_id  Int
+
+  // Relation to Snipx_Users
+  user     Snipx_Users   @relation("UserToTeam", fields: [user_id], references: [id])
+  
+  // Relation to SnipxTeams
+  team     SnipxTeams    @relation("TeamToMembers", fields: [team_id], references: [id])
+
+  @@unique([user_id, team_id])  // Ensures a user can only be in a team once
+
+  @@map("snipx_user_team")
+}
+
+model SnipxSnippet {
+  id                   Int           @id @default(autoincrement())
+  user_id              Int?          
+  type            String?       @db.VarChar(100)  
+  date              String?       @db.VarChar(250) 
+  text                 String?       @db.VarChar(1500)                   
+  green                Json?         
+  orange               Json?         
+  red                  Json?         
+  sentiment            String?       @db.VarChar(100)  
+  score                String?       @db.VarChar(100)  
+  explanations         String?       @db.VarChar(1500)                         
+
+  user                 Snipx_Users?  @relation(fields: [user_id], references: [id])
+
+  @@map("snipx_snippets")
+}
+
+
 
 
 
