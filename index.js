@@ -81,6 +81,205 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
+
+// Get all snipx_users
+app.get("/api/snipx_users", async (req, res) => {
+  const allUsers = await findSnipxAllUsers();
+  res.status(200).json(allUsers).end();
+});
+
+// Get all teams in the user's organization
+app.get("/api/teams", async (req, res) => {
+  try {
+    // Extract user ID from the request (assuming it's coming from a request header, token, etc.)
+    const { userId } = req.body; // Or req.query or req.headers depending on how you're passing the userId
+
+    // Step 1: Find the user's company through SnipxUserCompany
+    const userCompanyRelation = await prisma.snipxUserCompany.findUnique({
+      where: { user_id: userId },
+      include: { company: true },
+    });
+
+    if (!userCompanyRelation || !userCompanyRelation.company) {
+      return res.status(404).json({ message: "User or associated company not found" });
+    }
+
+    const companyId = userCompanyRelation.company_id;
+
+    // Step 2: Find all teams associated with the company
+    const teams = await prisma.snipxTeams.findMany({
+      where: { company_id: companyId },
+      include: { teamMembers: true }, // Including team members
+    });
+
+    res.status(200).json(teams).end();
+  } catch (error) {
+    console.error("Error fetching teams:", error);
+    res.status(500).json({ message: "Internal server error" }).end();
+  }
+});
+
+// Create a new team and add users to it
+app.post("/api/teams", async (req, res) => {
+  try {
+    // Extract data from the request body
+    const { teamName, userIds, currentUserId } = req.body; // userIds is an array of user IDs to add to the team
+
+    // Step 1: Find the company of the current user
+    const currentUserCompany = await prisma.snipxUserCompany.findUnique({
+      where: { user_id: currentUserId },
+    });
+
+    if (!currentUserCompany) {
+      return res.status(404).json({ message: "Current user or their company not found" }).end();
+    }
+
+    const companyId = currentUserCompany.company_id;
+
+    // Step 2: Create the new team associated with the user's company
+    const newTeam = await prisma.snipxTeams.create({
+      data: {
+        team_name: teamName,
+        company_id: companyId,
+      },
+    });
+
+    // Step 3: Add each user to the team (ensure users belong to the same company)
+    const userTeamPromises = userIds.map(async (userId) => {
+      // Check if the user belongs to the same company
+      const userCompany = await prisma.snipxUserCompany.findUnique({
+        where: { user_id: userId },
+      });
+
+      if (userCompany && userCompany.company_id === companyId) {
+        // Add user to the team
+        return prisma.snipxUserTeam.create({
+          data: {
+            user_id: userId,
+            team_id: newTeam.id,
+          },
+        });
+      } else {
+        // Return a rejected promise if user doesn't belong to the company
+        return Promise.reject(new Error(`User with ID ${userId} is not in the same company.`));
+      }
+    });
+
+    // Wait for all promises to resolve or reject
+    await Promise.allSettled(userTeamPromises);
+
+    res.status(201).json({ message: "Team created and users added successfully", team: newTeam }).end();
+  } catch (error) {
+    console.error("Error creating team or adding users:", error);
+    res.status(500).json({ message: "Failed to create team and add users" }).end();
+  }
+});
+
+
+
+app.post("/api/company_users", async (req, res) => {
+  try {
+    // Step 1: Extract the user who sent the request
+    const { id } = req.body;
+    console.log("id")
+    console.log(id)
+
+    // Step 2: Find the user's company through SnipxUserCompany
+    const userCompanyRelation = await prisma.snipxUserCompany.findUnique({
+      where: { user_id: id },
+      include: { company: true },
+    });
+
+    console.log("userCompanyRelation")
+    console.log(userCompanyRelation)
+
+    if (!userCompanyRelation || !userCompanyRelation.company) {
+      return res.status(404).json({ message: "User or associated company not found" });
+    }
+
+    const companyId = userCompanyRelation.company_id;
+
+    console.log("companyId")
+    console.log(companyId)
+
+    // Step 3: Find all users associated with the same company
+    const companyUsers = await prisma.snipxUserCompany.findMany({
+      where: { company_id: companyId },
+      include: { user: true },
+    });
+
+    console.log("companyUsers")
+    console.log(companyUsers)
+
+    // Extract the users from the relations
+    const users = companyUsers.map((relation) => relation.user);
+
+    console.log("users")
+    console.log(users)
+
+    // Step 4: Return the users in the response
+    res.status(200).json(users).end();
+  } catch (error) {
+    console.error("Error fetching company users:", error);
+    res.status(500).json({ message: "Internal server error" }).end();
+  }
+});
+
+
+// Add a new user
+app.post("/api/snipx_users", async (req, res) => {
+  const { email, role, managedBy, currentUserID } = req.body;
+  console.log("currentUserID:", currentUserID);
+  console.log("managedBy", managedBy)
+  try {
+    // Step 1: Find the company of the currentUserID
+    const currentUserCompany = await prisma.snipxUserCompany.findUnique({
+      where: { user_id: currentUserID },
+    });
+    console.log("currentUserCompany")
+    console.log(currentUserCompany)
+
+    if (!currentUserCompany) {
+      return res.status(404).json({ error: "Current user or their company not found" }).end();
+    }
+
+    const companyId = currentUserCompany.company_id;
+
+    // Step 2: Create the new user
+    const newUser = await addNewSnipxUser({ email, role, managedBy });
+
+    // Step 3: Link the new user to the same company
+    await prisma.snipxUserCompany.create({
+      data: {
+        user_id: newUser.id,
+        company_id: companyId,
+      },
+    });
+
+    res.status(201).json(newUser).end();
+  } catch (error) {
+    console.error("Failed to create user or link to company:", error);
+    res.status(500).json({ error: "Failed to create user and link to company" }).end();
+  }
+});
+
+// Find a user by ID
+app.post("/api/snipx_users/:id", async (req, res) => {
+  const { id } = req.params;
+
+  console.log("find by id id:", id)
+  try {
+    const foundUser = await findSnipxUserByID(id);
+    console.log("foundUser:", foundUser)
+    res.status(200).json(foundUser).end();
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update user" }).end();
+  }
+});
+
+
+
+
 const keyFilePath = require("./credentials2.json");
 
 console.log("keyFilePath:")
@@ -252,11 +451,7 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-// Get all snipx_users
-app.get("/api/snipx_users", async (req, res) => {
-  const allUsers = await findSnipxAllUsers();
-  res.status(200).json(allUsers).end();
-});
+
 
 // Uses sourcing extension. Get link to the next/previous candidate in the spreadsheet, rules, stats and all skills for the sourcer
 app.get("/api", async (req, res) => {
@@ -271,106 +466,6 @@ app.get("/api", async (req, res) => {
 });
 
 
-
-app.post("/api/company_users", async (req, res) => {
-  try {
-    // Step 1: Extract the user who sent the request
-    const { id } = req.body;
-    console.log("id")
-    console.log(id)
-
-    // Step 2: Find the user's company through SnipxUserCompany
-    const userCompanyRelation = await prisma.snipxUserCompany.findUnique({
-      where: { user_id: id },
-      include: { company: true },
-    });
-
-    console.log("userCompanyRelation")
-    console.log(userCompanyRelation)
-
-    if (!userCompanyRelation || !userCompanyRelation.company) {
-      return res.status(404).json({ message: "User or associated company not found" });
-    }
-
-    const companyId = userCompanyRelation.company_id;
-
-    console.log("companyId")
-    console.log(companyId)
-
-    // Step 3: Find all users associated with the same company
-    const companyUsers = await prisma.snipxUserCompany.findMany({
-      where: { company_id: companyId },
-      include: { user: true },
-    });
-
-    console.log("companyUsers")
-    console.log(companyUsers)
-
-    // Extract the users from the relations
-    const users = companyUsers.map((relation) => relation.user);
-
-    console.log("users")
-    console.log(users)
-
-    // Step 4: Return the users in the response
-    res.status(200).json(users).end();
-  } catch (error) {
-    console.error("Error fetching company users:", error);
-    res.status(500).json({ message: "Internal server error" }).end();
-  }
-});
-
-
-// Add a new user
-app.post("/api/snipx_users", async (req, res) => {
-  const { email, role, managedBy, currentUserID } = req.body;
-  console.log("currentUserID:", currentUserID);
-  console.log("managedBy", managedBy)
-  try {
-    // Step 1: Find the company of the currentUserID
-    const currentUserCompany = await prisma.snipxUserCompany.findUnique({
-      where: { user_id: currentUserID },
-    });
-    console.log("currentUserCompany")
-    console.log(currentUserCompany)
-
-    if (!currentUserCompany) {
-      return res.status(404).json({ error: "Current user or their company not found" }).end();
-    }
-
-    const companyId = currentUserCompany.company_id;
-
-    // Step 2: Create the new user
-    const newUser = await addNewSnipxUser({ email, role, managedBy });
-
-    // Step 3: Link the new user to the same company
-    await prisma.snipxUserCompany.create({
-      data: {
-        user_id: newUser.id,
-        company_id: companyId,
-      },
-    });
-
-    res.status(201).json(newUser).end();
-  } catch (error) {
-    console.error("Failed to create user or link to company:", error);
-    res.status(500).json({ error: "Failed to create user and link to company" }).end();
-  }
-});
-
-// Find a user by ID
-app.post("/api/snipx_users/:id", async (req, res) => {
-  const { id } = req.params;
-
-  console.log("find by id id:", id)
-  try {
-    const foundUser = await findSnipxUserByID(id);
-    console.log("foundUser:", foundUser)
-    res.status(200).json(foundUser).end();
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update user" }).end();
-  }
-});
 
 
 // Edit a user by ID
