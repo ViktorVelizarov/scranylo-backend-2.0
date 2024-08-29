@@ -206,7 +206,7 @@ app.put("/api/teams/:id", async (req, res) => {
     const teamId = parseInt(req.params.id, 10);
     // Extract data from the request body
     const { team_name, userIds } = req.body;
-    
+
     console.log("Received request to update team ID:", teamId);
     console.log("Updated team name:", team_name);
     console.log("User IDs to update:", userIds);
@@ -233,20 +233,23 @@ app.put("/api/teams/:id", async (req, res) => {
 
     // Step 3: Add new team members
     const userTeamPromises = userIds.map(async (userId) => {
+      // Convert userId to integer
+      const userIdInt = parseInt(userId, 10);
+
       // Check if the user belongs to the same company (this step may vary based on your logic)
       const userCompany = await prisma.snipxUserCompany.findUnique({
-        where: { user_id: userId },
+        where: { user_id: userIdInt },
       });
 
       if (userCompany) {
         return prisma.snipxUserTeam.create({
           data: {
-            user_id: userId,
+            user_id: userIdInt,
             team_id: teamId,
           },
         });
       } else {
-        return Promise.reject(new Error(`User with ID ${userId} is not valid.`));
+        return Promise.reject(new Error(`User with ID ${userIdInt} is not valid.`));
       }
     });
 
@@ -259,6 +262,7 @@ app.put("/api/teams/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to update team" }).end();
   }
 });
+
 
 
 // Delete a team
