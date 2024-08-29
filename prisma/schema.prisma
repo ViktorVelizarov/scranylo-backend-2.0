@@ -42,6 +42,24 @@ model Snipx_Users {
   @@map("snipx_users")
 }
 
+model SnipxSnippet {
+  id                   Int           @id @default(autoincrement())
+  user_id              Int?          
+  type            String?       @db.VarChar(100)  
+  date              String?       @db.VarChar(250) 
+  text                 String?       @db.VarChar(1500)                   
+  green                Json?         
+  orange               Json?         
+  red                  Json?         
+  sentiment            String?       @db.VarChar(100)  
+  score                String?       @db.VarChar(100)  
+  explanations         String?       @db.VarChar(1500)                         
+
+  user                 Snipx_Users?  @relation(fields: [user_id], references: [id])
+
+  @@map("snipx_snippets")
+}
+
 model Snipx_Company {
   id            Int               @id @default(autoincrement())
   company_name  String?           @db.VarChar(500)
@@ -71,7 +89,7 @@ model SnipxTeams {
   id          Int            @id @default(autoincrement())
   team_name   String         @db.VarChar(250)
   company_id  Int
-
+  average_score  Float?
   // Relation to Snipx_Company
   company     Snipx_Company  @relation("CompanyToTeams", fields: [company_id], references: [id])
   
@@ -97,23 +115,7 @@ model SnipxUserTeam {
   @@map("snipx_user_team")
 }
 
-model SnipxSnippet {
-  id                   Int           @id @default(autoincrement())
-  user_id              Int?          
-  type            String?       @db.VarChar(100)  
-  date              String?       @db.VarChar(250) 
-  text                 String?       @db.VarChar(1500)                   
-  green                Json?         
-  orange               Json?         
-  red                  Json?         
-  sentiment            String?       @db.VarChar(100)  
-  score                String?       @db.VarChar(100)  
-  explanations         String?       @db.VarChar(1500)                         
 
-  user                 Snipx_Users?  @relation(fields: [user_id], references: [id])
-
-  @@map("snipx_snippets")
-}
 
 
 

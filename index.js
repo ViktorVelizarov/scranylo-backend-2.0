@@ -82,7 +82,7 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
 
-// Get all teams in the user's organization
+
 app.get("/api/teams", async (req, res) => {
   try {
     // Extract userId from the query string and convert it to an integer
@@ -114,17 +114,68 @@ app.get("/api/teams", async (req, res) => {
     // Step 2: Find all teams associated with the company
     const teams = await prisma.snipxTeams.findMany({
       where: { company_id: companyId },
-      include: { teamMembers: true }, // Including team members
+      include: {
+        teamMembers: {
+          include: {
+            user: true // Fetch user details to get their snippets
+          }
+        }
+      }
     });
 
     console.log("Teams found:", teams);
 
-    res.status(200).json(teams).end();
+    // Function to calculate the average score for a user
+    const calculateAverageScore = async (userId) => {
+      // Get the last 5 snippets for the user
+      console.log(`Fetching last 5 snippets for user ID: ${userId}`);
+      const snippets = await prisma.snipxSnippet.findMany({
+        where: { user_id: userId },
+        orderBy: { date: 'desc' },
+        take: 5
+      });
+
+      console.log(`Snippets fetched for user ID ${userId}:`, snippets);
+
+      // Calculate average score
+      const scores = snippets.map(snippet => parseFloat(snippet.score) || 0);
+      console.log(`Scores for user ID ${userId}:`, scores);
+
+      const averageScore = scores.length > 0 ? scores.reduce((acc, score) => acc + score, 0) / scores.length : 0;
+      console.log(`Calculated average score for user ID ${userId}: ${averageScore}`);
+
+      return averageScore;
+    };
+
+    // Calculate average score for each team
+    const teamsWithAverageScores = await Promise.all(teams.map(async (team) => {
+      console.log(`Calculating average score for team ID: ${team.id}, Team Name: ${team.team_name}`);
+
+      // Get all user IDs for the team
+      const userIds = team.teamMembers.map(member => member.user_id);
+      console.log(`User IDs in team ID ${team.id}:`, userIds);
+
+      // Calculate average score for each user
+      const userScores = await Promise.all(userIds.map(userId => calculateAverageScore(userId)));
+      console.log(`User scores for team ID ${team.id}:`, userScores);
+
+      const averageScore = userScores.length > 0 ? userScores.reduce((acc, score) => acc + score, 0) / userScores.length : 0;
+      console.log(`Calculated average score for team ID ${team.id}: ${averageScore}`);
+
+      // Return team with calculated average score
+      return {
+        ...team,
+        average_score: averageScore
+      };
+    }));
+
+    res.status(200).json(teamsWithAverageScores).end();
   } catch (error) {
     console.error("Error fetching teams:", error);
     res.status(500).json({ message: "Internal server error" }).end();
   }
 });
+
 
 
 
