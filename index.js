@@ -82,26 +82,31 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
 
-// Get all snipx_users
-app.get("/api/snipx_users", async (req, res) => {
-  const allUsers = await findSnipxAllUsers();
-  res.status(200).json(allUsers).end();
-});
-
 // Get all teams in the user's organization
 app.get("/api/teams", async (req, res) => {
   try {
-    // Extract user ID from the request (assuming it's coming from a request header, token, etc.)
-    const { userId } = req.body; // Or req.query or req.headers depending on how you're passing the userId
+    // Extract userId from the query string and convert it to an integer
+    const userId = parseInt(req.query.userId, 10); // Use parseInt to ensure userId is an integer
+
+    console.log("Received request to fetch teams for user ID:", userId);
+
+    // Check if userId is properly extracted and is a valid number
+    if (isNaN(userId)) {
+      console.log("User ID is missing or is not a valid number.");
+      return res.status(400).json({ message: "User ID is required and must be a number" }).end();
+    }
 
     // Step 1: Find the user's company through SnipxUserCompany
     const userCompanyRelation = await prisma.snipxUserCompany.findUnique({
-      where: { user_id: userId },
+      where: { user_id: userId },  // userId is now an integer
       include: { company: true },
     });
 
+    console.log("User-Company Relation:", userCompanyRelation);
+
     if (!userCompanyRelation || !userCompanyRelation.company) {
-      return res.status(404).json({ message: "User or associated company not found" });
+      console.log("No associated company found for user ID:", userId);
+      return res.status(404).json({ message: "User or associated company not found" }).end();
     }
 
     const companyId = userCompanyRelation.company_id;
@@ -112,6 +117,8 @@ app.get("/api/teams", async (req, res) => {
       include: { teamMembers: true }, // Including team members
     });
 
+    console.log("Teams found:", teams);
+
     res.status(200).json(teams).end();
   } catch (error) {
     console.error("Error fetching teams:", error);
@@ -119,16 +126,28 @@ app.get("/api/teams", async (req, res) => {
   }
 });
 
+
+
 // Create a new team and add users to it
 app.post("/api/teams", async (req, res) => {
   try {
     // Extract data from the request body
     const { teamName, userIds, currentUserId } = req.body; // userIds is an array of user IDs to add to the team
 
+    // Convert userIds and currentUserId to integers
+    const userIdsInt = userIds.map(id => parseInt(id, 10));
+    const currentUserIdInt = parseInt(currentUserId, 10);
+
+    console.log("Received request to create a team with name:", teamName);
+    console.log("User IDs to add to the team:", userIdsInt);
+    console.log("Current user ID:", currentUserIdInt);
+
     // Step 1: Find the company of the current user
     const currentUserCompany = await prisma.snipxUserCompany.findUnique({
-      where: { user_id: currentUserId },
+      where: { user_id: currentUserIdInt }, // user_id as integer
     });
+
+    console.log("Current User's Company Relation:", currentUserCompany);
 
     if (!currentUserCompany) {
       return res.status(404).json({ message: "Current user or their company not found" }).end();
@@ -144,12 +163,16 @@ app.post("/api/teams", async (req, res) => {
       },
     });
 
+    console.log("New team created:", newTeam);
+
     // Step 3: Add each user to the team (ensure users belong to the same company)
-    const userTeamPromises = userIds.map(async (userId) => {
+    const userTeamPromises = userIdsInt.map(async (userId) => {
       // Check if the user belongs to the same company
       const userCompany = await prisma.snipxUserCompany.findUnique({
-        where: { user_id: userId },
+        where: { user_id: userId }, // user_id as integer
       });
+
+      console.log(`Checking if user with ID ${userId} belongs to company ID ${companyId}`);
 
       if (userCompany && userCompany.company_id === companyId) {
         // Add user to the team
@@ -174,6 +197,104 @@ app.post("/api/teams", async (req, res) => {
     res.status(500).json({ message: "Failed to create team and add users" }).end();
   }
 });
+
+
+// Update team details
+app.put("/api/teams/:id", async (req, res) => {
+  try {
+    // Extract team ID from the request parameters
+    const teamId = parseInt(req.params.id, 10);
+    // Extract data from the request body
+    const { team_name, userIds } = req.body;
+    
+    console.log("Received request to update team ID:", teamId);
+    console.log("Updated team name:", team_name);
+    console.log("User IDs to update:", userIds);
+
+    // Ensure team ID is a valid number
+    if (isNaN(teamId)) {
+      return res.status(400).json({ message: "Invalid team ID" }).end();
+    }
+
+    // Step 1: Update the team details
+    const updatedTeam = await prisma.snipxTeams.update({
+      where: { id: teamId },
+      data: { team_name: team_name },
+    });
+
+    console.log("Team updated:", updatedTeam);
+
+    // Step 2: Remove existing team members
+    await prisma.snipxUserTeam.deleteMany({
+      where: { team_id: teamId },
+    });
+
+    console.log("Removed existing team members");
+
+    // Step 3: Add new team members
+    const userTeamPromises = userIds.map(async (userId) => {
+      // Check if the user belongs to the same company (this step may vary based on your logic)
+      const userCompany = await prisma.snipxUserCompany.findUnique({
+        where: { user_id: userId },
+      });
+
+      if (userCompany) {
+        return prisma.snipxUserTeam.create({
+          data: {
+            user_id: userId,
+            team_id: teamId,
+          },
+        });
+      } else {
+        return Promise.reject(new Error(`User with ID ${userId} is not valid.`));
+      }
+    });
+
+    // Wait for all promises to resolve or reject
+    await Promise.allSettled(userTeamPromises);
+
+    res.status(200).json({ message: "Team updated successfully", team: updatedTeam }).end();
+  } catch (error) {
+    console.error("Error updating team:", error);
+    res.status(500).json({ message: "Failed to update team" }).end();
+  }
+});
+
+
+// Delete a team
+app.delete("/api/teams/:id", async (req, res) => {
+  try {
+    // Extract team ID from the request parameters
+    const teamId = parseInt(req.params.id, 10);
+
+    console.log("Received request to delete team ID:", teamId);
+
+    // Ensure team ID is a valid number
+    if (isNaN(teamId)) {
+      return res.status(400).json({ message: "Invalid team ID" }).end();
+    }
+
+    // Step 1: Delete team members
+    await prisma.snipxUserTeam.deleteMany({
+      where: { team_id: teamId },
+    });
+
+    console.log("Deleted team members");
+
+    // Step 2: Delete the team
+    await prisma.snipxTeams.delete({
+      where: { id: teamId },
+    });
+
+    console.log("Team deleted");
+
+    res.status(200).json({ message: "Team deleted successfully" }).end();
+  } catch (error) {
+    console.error("Error deleting team:", error);
+    res.status(500).json({ message: "Failed to delete team" }).end();
+  }
+});
+
 
 
 
