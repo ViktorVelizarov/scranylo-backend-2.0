@@ -28,7 +28,8 @@ model Snipx_Users {
   id          Int                @id @default(autoincrement())
   email       String?            @db.VarChar(250)
   role        String?            @db.VarChar(100)
-  managedBy   Int?               
+  managedBy   Int?     
+  profilePictureUrl String?         @db.VarChar(500)          
   manager     Snipx_Users?       @relation("ManagedBy", fields: [managedBy], references: [id])
   subordinates Snipx_Users[]     @relation("ManagedBy")
   snippets    SnipxSnippet[]

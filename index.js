@@ -468,154 +468,170 @@ const auth = new google.auth.GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/documents', 'https://www.googleapis.com/auth/drive'],
 });
 
-// Google Docs API instance
+
 const docs = google.docs({ version: 'v1', auth });
 const drive = google.drive({ version: 'v3', auth });
 
-
 async function createOrUpdateGoogleDoc(user, snippets) {
-  const docTitle = `Snippets for ${user.email}`;
-  let documentId = null;
+    const docTitle = `Snippets for ${user.email}`;
+    let documentId = null;
 
-  try {
-      const res = await drive.files.list({
-          q: `name='${docTitle}' and mimeType='application/vnd.google-apps.document'`,
-          fields: 'files(id, name)',
-      });
+    console.log(`Processing user: ${user.email}`);
 
-      if (res.data.files && res.data.files.length > 0) {
-          documentId = res.data.files[0].id;
-      } else {
-          const createResponse = await docs.documents.create({
-              requestBody: { title: docTitle },
-          });
-          documentId = createResponse.data.documentId;
-      }
+    try {
+        const res = await drive.files.list({
+            q: `name='${docTitle}' and mimeType='application/vnd.google-apps.document'`,
+            fields: 'files(id, name)',
+        });
 
-      const docRes = await docs.documents.get({ documentId });
-      let docLength = docRes.data.body.content.reduce((length, element) => {
-          if (element.endIndex) {
-              return Math.max(length, element.endIndex);
-          }
-          return length;
-      }, 1);
+        if (res.data.files && res.data.files.length > 0) {
+            documentId = res.data.files[0].id;
+            console.log(`Document already exists for ${user.email}, updating document with ID: ${documentId}`);
+        } else {
+            const createResponse = await docs.documents.create({
+                requestBody: { title: docTitle },
+            });
+            documentId = createResponse.data.documentId;
+            console.log(`Created new document for ${user.email} with ID: ${documentId}`);
+        }
 
-      let currentIndex = docLength;
+        const docRes = await docs.documents.get({ documentId });
+        const docLength = docRes.data.body.content.reduce((length, element) => {
+            if (element.paragraph) {
+                length += (element.paragraph.elements || []).reduce((pLength, e) => pLength + (e.textRun ? e.textRun.content.length : 0), 0);
+            }
+            return length;
+        }, 0);
 
-      const requests = [];
+        const requests = [];
 
-      // Clear existing content
-      if (docLength > 1) {
-          requests.push({
-              deleteContentRange: {
-                  range: { startIndex: 1, endIndex: docLength - 1 },
-              },
-          });
-          currentIndex = 1;
-      }
+        if (docLength > 1) {
+            const endIndex = Math.min(1000000, docLength);
+            requests.push({
+                deleteContentRange: {
+                    range: { startIndex: 1, endIndex: endIndex },
+                },
+            });
+        }
 
-      for (const snippet of snippets) {
-          // Insert a newline if necessary
-          if (currentIndex > 1) {
-              requests.push({
-                  insertText: {
-                      text: '\n',
-                      location: { index: currentIndex },
-                  },
-              });
-              currentIndex += 1;
-          }
+        if (snippets.length > 0) {
+            snippets.forEach((snippet, index) => {
+                const snippetIndex = index * 1000; // Ensure unique indexes
 
-          // Insert snippet header
-          requests.push({
-              insertText: {
-                  text: `Snippets - ${snippet.date}\n`,
-                  location: { index: currentIndex },
-              },
-          });
-          requests.push({
-              updateParagraphStyle: {
-                  range: { startIndex: currentIndex, endIndex: currentIndex + `Snippets - ${snippet.date}\n`.length },
-                  paragraphStyle: { namedStyleType: 'HEADING_1' },
-                  fields: 'namedStyleType',
-              },
-          });
-          currentIndex += `Snippets - ${snippet.date}\n`.length;
+                // Add title as Heading 1
+                requests.push({
+                    insertText: {
+                        text: `Snippets - ${snippet.date}\n`,
+                        location: { index: snippetIndex + 1 },
+                    },
+                });
+                requests.push({
+                    updateParagraphStyle: {
+                        range: {
+                            startIndex: snippetIndex + 1,
+                            endIndex: snippetIndex + 23,
+                        },
+                        paragraphStyle: { namedStyleType: 'HEADING_1' },
+                        fields: 'namedStyleType',
+                    },
+                });
 
-          // Insert table
-          requests.push({
-              insertTable: {
-                  rows: 7,
-                  columns: 1,
-                  location: { index: currentIndex },
-              },
-          });
-          currentIndex += 1;
+                // Insert a newline to ensure the following table insertion is within bounds
+                requests.push({
+                    insertText: {
+                        text: `\n`,
+                        location: { index: snippetIndex + 24 },
+                    },
+                });
 
-          const fields = ['Type', 'Green', 'Orange', 'Red', 'Sentiment', 'Score', 'Explanations'];
-          for (const field of fields) {
-              requests.push({
-                  insertText: {
-                      text: `${field}: ${snippet[field.toLowerCase()]}\n`,
-                      location: { index: currentIndex },
-                  },
-              });
-              currentIndex += `${field}: ${snippet[field.toLowerCase()]}\n`.length;
-          }
+                // Insert table with 7 rows (one for each snippet field) and 1 column
+                requests.push({
+                    insertTable: {
+                        rows: 7,
+                        columns: 1,
+                        location: { index: snippetIndex + 25 },
+                    },
+                });
 
-          requests.push({
-              createParagraphBullets: {
-                  range: {
-                      startIndex: currentIndex - fields.length * 20,
-                      endIndex: currentIndex,
-                  },
-                  bulletPreset: 'BULLET_DISC_CIRCLE_SQUARE',
-              },
-          });
-      }
+                // Insert each field as a bullet point within the table
+                const fields = [
+                    `Type: ${snippet.type}`,
+                    `Green: ${snippet.green}`,
+                    `Orange: ${snippet.orange}`,
+                    `Red: ${snippet.red}`,
+                    `Sentiment: ${snippet.sentiment}`,
+                    `Score: ${snippet.score}`,
+                    `Explanations: ${snippet.explanations}`,
+                ];
 
-      // Batch update document with all requests
-      if (requests.length > 0) {
-          await docs.documents.batchUpdate({
-              documentId: documentId,
-              requestBody: { requests },
-          });
-      }
+                fields.forEach((field, i) => {
+                    requests.push({
+                        insertText: {
+                            text: `${field}\n`,
+                            location: { index: snippetIndex + 26 + i * 2 },
+                        },
+                    });
+                    requests.push({
+                        createParagraphBullets: {
+                            range: {
+                                startIndex: snippetIndex + 26 + i * 2,
+                                endIndex: snippetIndex + 26 + i * 2 + field.length + 1,
+                            },
+                            bulletPreset: 'BULLET_DISC_CIRCLE_SQUARE',
+                        },
+                    });
+                });
+            });
+        }
 
-      // Sharing document
-      await drive.permissions.create({
-          fileId: documentId,
-          requestBody: {
-              role: 'writer',
-              type: 'user',
-              emailAddress: 'webs@scaleup.agency',
-          },
-      });
+        if (requests.length > 0) {
+            console.log(`Updating document with new snippets for ${user.email}`);
+            await docs.documents.batchUpdate({
+                documentId: documentId,
+                requestBody: { requests },
+            });
+        } else {
+            console.log(`No snippets to update for ${user.email}.`);
+        }
 
-      console.log(`Successfully processed document for ${user.email} and shared with webs@scaleup.agency`);
-      return documentId;
-  } catch (error) {
-      console.error(`Error processing document for ${user.email}:`, error);
-      throw error;
-  }
+        await drive.permissions.create({
+            fileId: documentId,
+            requestBody: {
+                role: 'writer',
+                type: 'user',
+                emailAddress: 'webs@scaleup.agency',
+            },
+        });
+
+        console.log(`Successfully processed document for ${user.email} and shared with webs@scaleup.agency`);
+        return documentId;
+    } catch (error) {
+        console.error(`Error processing document for ${user.email}:`, error);
+        throw error;
+    }
 }
 
 app.post('/api/update-google-docs', async (req, res) => {
-  try {
-      const users = await prisma.snipx_Users.findMany();
-      for (const user of users) {
-          const snippets = await prisma.snipxSnippet.findMany({
-              where: { user_id: user.id },
-          });
-          await createOrUpdateGoogleDoc(user, snippets);
-      }
+    try {
+        console.log('Received request to update Google Docs.');
+        const users = await prisma.snipx_Users.findMany();
+        console.log(`Found ${users.length} users in the database.`);
 
-      res.status(200).send('Google Docs updated successfully.');
-  } catch (error) {
-      res.status(500).send('Internal Server Error');
-  }
+        for (const user of users) {
+            const snippets = await prisma.snipxSnippet.findMany({
+                where: { user_id: user.id },
+            });
+            console.log(`Found ${snippets.length} snippets for user ${user.email}.`);
+            await createOrUpdateGoogleDoc(user, snippets);
+        }
+
+        console.log('All Google Docs updated successfully.');
+        res.status(200).send('Google Docs updated successfully.');
+    } catch (error) {
+        console.error('Error updating Google Docs:', error);
+        res.status(500).send('Internal Server Error');
+    }
 });
-
 
 
 
