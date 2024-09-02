@@ -6,6 +6,9 @@ const OpenAI = require("openai");
 const { z } = require("zod");
 const { zodResponseFormat } = require("openai/helpers/zod");
 const prisma = require("./utils/prisma");
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 
 const { google } = require("googleapis");
 
@@ -78,8 +81,128 @@ const SentimentrAnalysisFormat = z.object({
 const app = express();
 
 app.use(cors());
-app.use(express.json());
-app.use(bodyParser.urlencoded({ extended: false }));
+
+// Increase the limit for the JSON body parser
+app.use(express.json({ limit: '10mb' }));  // Set limit to 10MB
+app.use(bodyParser.urlencoded({ extended: false, limit: '10mb' }));
+
+
+
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Endpoint to upload an image
+app.post('/api/uploadProfilePicture', upload.single('profilePicture'), async (req, res) => {
+  const { userId } = req.body;
+  const profilePicture = req.file?.buffer;
+
+  console.log("Received request to upload profile picture:", { userId });
+  console.log("Received file info:", req.file);
+  console.log("profilePicture:", profilePicture);
+  console.log('base64 image', profilePicture.toString('base64'))
+
+  try {
+    // Validate the input
+    if (!userId || !profilePicture) {
+      console.log("Invalid request: Missing userId or picture file");
+      return res.status(400).json({ error: "User ID and Picture file are required." }).end();
+    }
+
+    // Update the profile picture in the database
+    const updatedUser = await prisma.snipx_Users.update({
+      where: { id: 1 }, // Ensure userId is an integer
+      data: {
+        profilePictureUrl: profilePicture.toString('base64'), // Convert binary to base64 encoded string
+      },
+    });
+
+    console.log("Profile picture uploaded successfully:", updatedUser);
+    res.status(200).json(updatedUser).end();
+  } catch (error) {
+    console.error("Failed to upload profile picture:", error);
+    res.status(500).json({ error: "Failed to upload profile picture." }).end();
+  }
+});
+
+// Endpoint to retrieve a profile picture
+app.get('/api/profilePicture/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  console.log("Received request to retrieve profile picture:", { userId });
+
+  try {
+    // Fetch the profile picture from the database
+    const user = await prisma.snipxUser.findUnique({
+      where: { id: parseInt(userId) },
+      select: { profilePictureUrl: true },
+    });
+
+    if (!user || !user.profilePictureUrl) {
+      console.log("Profile picture not found for userId:", userId);
+      return res.status(404).json({ error: "Profile picture not found." }).end();
+    }
+
+    // Set the content type header and send the image
+    res.setHeader('Content-Type', 'image/jpeg'); // Adjust as needed
+    res.send(user.profilePictureUrl);
+  } catch (error) {
+    console.error("Failed to retrieve profile picture:", error);
+    res.status(500).json({ error: "Failed to retrieve profile picture." }).end();
+  }
+});
+
+
+
+
+// Add a new user
+app.post("/api/snipx_users", async (req, res) => {
+  const { email, role, managedBy, currentUserID } = req.body;
+  console.log("currentUserID:", currentUserID);
+  console.log("managedBy", managedBy)
+  try {
+    // Step 1: Find the company of the currentUserID
+    const currentUserCompany = await prisma.snipxUserCompany.findUnique({
+      where: { user_id: currentUserID },
+    });
+    console.log("currentUserCompany")
+    console.log(currentUserCompany)
+
+    if (!currentUserCompany) {
+      return res.status(404).json({ error: "Current user or their company not found" }).end();
+    }
+
+    const companyId = currentUserCompany.company_id;
+
+    // Step 2: Create the new user
+    const newUser = await addNewSnipxUser({ email, role, managedBy });
+
+    // Step 3: Link the new user to the same company
+    await prisma.snipxUserCompany.create({
+      data: {
+        user_id: newUser.id,
+        company_id: companyId,
+      },
+    });
+
+    res.status(201).json(newUser).end();
+  } catch (error) {
+    console.error("Failed to create user or link to company:", error);
+    res.status(500).json({ error: "Failed to create user and link to company" }).end();
+  }
+});
+
+// Find a user by ID
+app.post("/api/snipx_users/:id", async (req, res) => {
+  const { id } = req.params;
+
+  console.log("find by id id:", id)
+  try {
+    const foundUser = await findSnipxUserByID(id);
+    console.log("foundUser:", foundUser)
+    res.status(200).json(foundUser).end();
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update user" }).end();
+  }
+});
 
 
 
@@ -384,14 +507,10 @@ app.post("/api/company_users", async (req, res) => {
       include: { user: true },
     });
 
-    console.log("companyUsers")
-    console.log(companyUsers)
 
     // Extract the users from the relations
     const users = companyUsers.map((relation) => relation.user);
 
-    console.log("users")
-    console.log(users)
 
     // Step 4: Return the users in the response
     res.status(200).json(users).end();
@@ -401,65 +520,7 @@ app.post("/api/company_users", async (req, res) => {
   }
 });
 
-
-// Add a new user
-app.post("/api/snipx_users", async (req, res) => {
-  const { email, role, managedBy, currentUserID } = req.body;
-  console.log("currentUserID:", currentUserID);
-  console.log("managedBy", managedBy)
-  try {
-    // Step 1: Find the company of the currentUserID
-    const currentUserCompany = await prisma.snipxUserCompany.findUnique({
-      where: { user_id: currentUserID },
-    });
-    console.log("currentUserCompany")
-    console.log(currentUserCompany)
-
-    if (!currentUserCompany) {
-      return res.status(404).json({ error: "Current user or their company not found" }).end();
-    }
-
-    const companyId = currentUserCompany.company_id;
-
-    // Step 2: Create the new user
-    const newUser = await addNewSnipxUser({ email, role, managedBy });
-
-    // Step 3: Link the new user to the same company
-    await prisma.snipxUserCompany.create({
-      data: {
-        user_id: newUser.id,
-        company_id: companyId,
-      },
-    });
-
-    res.status(201).json(newUser).end();
-  } catch (error) {
-    console.error("Failed to create user or link to company:", error);
-    res.status(500).json({ error: "Failed to create user and link to company" }).end();
-  }
-});
-
-// Find a user by ID
-app.post("/api/snipx_users/:id", async (req, res) => {
-  const { id } = req.params;
-
-  console.log("find by id id:", id)
-  try {
-    const foundUser = await findSnipxUserByID(id);
-    console.log("foundUser:", foundUser)
-    res.status(200).json(foundUser).end();
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update user" }).end();
-  }
-});
-
-
-
-
 const keyFilePath = require("./credentials2.json");
-
-console.log("keyFilePath:")
-console.log(keyFilePath)
 
 
 // Initialize the Google Auth client
@@ -688,8 +749,6 @@ app.delete("/api/snipx_users/:id", async (req, res) => {
 // get all snippets from db
 app.get("/api/snipx_snippets",async (req, res) => {
   const allSnippets = await findAllSnippets();
-  console.log("allSnippets:")
-  console.log(allSnippets)
   res.status(200).json(allSnippets).end();
 });
 
@@ -762,7 +821,7 @@ app.post("/api/snipx_snippets/user", async (req, res) => {
     }
 
     const userSnippets = await findSnippetsByUserId(id);
-    console.log("User Snippets:", userSnippets);
+
 
     if (userSnippets.length === 0) {
       return res.status(404).json({ message: "No snippets found for this user" }).end();
@@ -785,7 +844,6 @@ app.post("/api/snipx_snippets/user_daily", async (req, res) => {
     }
 
     const userSnippets = await findDailySnippetsByUserId(id);
-    console.log("User Snippets:", userSnippets);
 
     if (userSnippets.length === 0) {
       return res.status(404).json({ message: "No snippets found for this user" }).end();
@@ -837,7 +895,7 @@ app.delete("/api/snipx_snippets/:id", async (req, res) => {
 
 app.post("/api/weeklySnippet", async (req, res) => {
   const { snippetIds } = req.body;
-  console.log("snippetIds:", snippetIds);
+
 
   // Check if snippetIds is provided and is an array
   if (!Array.isArray(snippetIds) || snippetIds.length === 0) {
@@ -860,7 +918,7 @@ app.post("/api/weeklySnippet", async (req, res) => {
               score: true
           }
       });
-      console.log("chosen snippets:", snippets);
+
       // Extract the text values and dates from the snippets
       const snippetDetails = snippets.map(snippet => ({
           text: snippet.text,
@@ -881,7 +939,6 @@ app.post("/api/weeklySnippet", async (req, res) => {
           ${snippetDetails.map(detail => `${detail.date}: ${detail.text}`).join(' ')}
       `;
 
-      console.log("Prompt for OpenAI:", promptText);
 
       // Make a request to OpenAI with the prompt
       const completion = await openai.chat.completions.create({
@@ -891,7 +948,7 @@ app.post("/api/weeklySnippet", async (req, res) => {
 
       const result = completion.choices[0].message.content;
 
-      console.log("weeklyReport result:", result);
+
 
       res.status(200).json({ weeklyReport: result });
   } catch (error) {
@@ -961,10 +1018,9 @@ app.post("/api/sentimentAnalysis", async (req, res) => {
     });
 
     const result = completion.choices[0].message.content;
-    console.log("Bresult")
-    console.log(result)
+
     const parsedResult = JSON.parse(result);
-    console.log("Result:");
+
     console.log(parsedResult);
 
     res.status(200).json(parsedResult);
