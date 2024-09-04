@@ -205,6 +205,58 @@ app.post("/api/snipx_users/:id", async (req, res) => {
 });
 
 
+// Endpoint to get all snippets for a given team
+app.post("/api/team_snippets", async (req, res) => {
+  try {
+    // Extract teamId from the query string and convert it to an integer
+    const { teamIdReq } = req.body;
+    const teamId = parseInt(teamIdReq, 10);
+
+    console.log("Received request to fetch snippets for team ID:", teamId);
+
+    // Check if teamId is valid
+    if (isNaN(teamId)) {
+      console.log("Team ID is missing or is not a valid number.");
+      return res.status(400).json({ message: "Team ID is required and must be a number" }).end();
+    }
+
+    // Step 1: Find all users in the specified team
+    const teamMembers = await prisma.snipxUserTeam.findMany({
+      where: { team_id: teamId },
+      include: {
+        user: true // Include user details
+      }
+    });
+
+    if (teamMembers.length === 0) {
+      console.log("No users found in team ID:", teamId);
+      return res.status(404).json({ message: "No users found in the specified team" }).end();
+    }
+
+    // Extract user IDs from the team members
+    const userIds = teamMembers.map(member => member.user_id);
+
+    console.log(`User IDs in team ID ${teamId}:`, userIds);
+
+    // Step 2: Fetch all snippets for these users
+    const snippets = await prisma.snipxSnippet.findMany({
+      where: {
+        user_id: { in: userIds }
+      },
+      orderBy: { date: 'desc' }
+    });
+
+    console.log(`Snippets found for team ID ${teamId}:`, snippets);
+
+    // Return the snippets
+    res.status(200).json(snippets).end();
+  } catch (error) {
+    console.error("Error fetching snippets for team:", error);
+    res.status(500).json({ message: "Internal server error" }).end();
+  }
+});
+
+
 
 app.get("/api/teams", async (req, res) => {
   try {
