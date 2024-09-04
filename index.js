@@ -95,7 +95,7 @@ app.post('/api/uploadProfilePicture', upload.single('profilePicture'), async (re
   const { userId } = req.body;
   const profilePicture = req.file?.buffer;
 
-  console.log("Received request to upload profile picture:", { userId });
+  console.log("userID:", parseInt(userId));
   console.log("Received file info:", req.file);
   console.log("profilePicture:", profilePicture);
   console.log('base64 image', profilePicture.toString('base64'))
@@ -109,7 +109,7 @@ app.post('/api/uploadProfilePicture', upload.single('profilePicture'), async (re
 
     // Update the profile picture in the database
     const updatedUser = await prisma.snipx_Users.update({
-      where: { id: 1 }, // Ensure userId is an integer
+      where: { id: parseInt(userId) }, // Ensure userId is an integer
       data: {
         profilePictureUrl: profilePicture.toString('base64'), // Convert binary to base64 encoded string
       },
@@ -752,6 +752,54 @@ app.get("/api/snipx_snippets",async (req, res) => {
   res.status(200).json(allSnippets).end();
 });
 
+
+// Get snippets by Company ID
+app.post("/api/company_snippets_ID", async (req, res) => {
+  try {
+    // Step 1: Extract the company ID from the request body
+    const { companyId } = req.body;
+
+    if (!companyId) {
+      return res.status(400).json({ error: "Company ID is required" }).end();
+    }
+
+    // Step 2: Find all users associated with the provided company ID
+    const companyUsers = await prisma.snipxUserCompany.findMany({
+      where: {
+        company_id: companyId,
+      },
+      select: { user_id: true },
+    });
+
+    if (companyUsers.length === 0) {
+      return res.status(404).json({ message: "No users found for this company" }).end();
+    }
+
+    const userIds = companyUsers.map((relation) => relation.user_id);
+    console.log("userIds in company:", userIds);
+
+    // Step 3: Find all snippets associated with the users in that company
+    const companySnippets = await prisma.snipxSnippet.findMany({
+      where: {
+        user_id: {
+          in: userIds,
+        },
+      },
+    });
+
+    console.log("companySnippets:", companySnippets);
+
+    // Step 4: Return the snippets in the response
+    res.status(200).json(companySnippets).end();
+  } catch (error) {
+    console.error("Error fetching company snippets:", error);
+    res.status(500).json({ message: "Internal server error" }).end();
+  }
+});
+
+
+
+// Get Company Snippets by user Id
 app.post("/api/company_snippets", async (req, res) => {
   try {
     // Step 1: Extract the user ID from the request body
@@ -1277,3 +1325,4 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server listen on localhost:${PORT}...`);
 });
+  
