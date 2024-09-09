@@ -86,6 +86,33 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));  // Set limit to 10MB
 app.use(bodyParser.urlencoded({ extended: false, limit: '10mb' }));
 
+app.post('/api/uploadPDP', async (req, res) => {
+  const { userId, PDPText } = req.body; // Destructure userId and PDPText from the request body
+
+  console.log("userID:", parseInt(userId));
+  console.log("Received PDP:", PDPText);
+
+  try {
+    // Validate the input
+    if (!userId || !PDPText) {
+      console.log("Invalid request: Missing userId or PDP text");
+      return res.status(400).json({ error: "User ID and PDP text are required." }).end();
+    }
+
+    const updatedUser = await prisma.snipx_Users.update({
+      where: { id: parseInt(userId) }, // Ensure userId is an integer
+      data: {
+        PDP: PDPText, 
+      },
+    });
+
+    console.log("PDP uploaded successfully:", updatedUser);
+    res.status(200).json(updatedUser).end();
+  } catch (error) {
+    console.error("Failed to upload PDP:", error);
+    res.status(500).json({ error: "Failed to upload PDP." }).end();
+  }
+});
 
 
 const upload = multer({ storage: multer.memoryStorage() });
