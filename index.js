@@ -86,6 +86,8 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));  // Set limit to 10MB
 app.use(bodyParser.urlencoded({ extended: false, limit: '10mb' }));
 
+
+//uplaod a PDP to a given user in the snippets user table
 app.post('/api/uploadPDP', async (req, res) => {
   const { userId, PDPText } = req.body; // Destructure userId and PDPText from the request body
 
@@ -113,6 +115,28 @@ app.post('/api/uploadPDP', async (req, res) => {
     res.status(500).json({ error: "Failed to upload PDP." }).end();
   }
 });
+
+//get the PDP text of a given user from the snippets users table
+app.get('/api/getPDP/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const user = await prisma.snipx_Users.findUnique({
+      where: { id: parseInt(userId) },
+      select: { PDP: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" }).end();
+    }
+
+    res.status(200).json({ PDP: user.PDP }).end();
+  } catch (error) {
+    console.error("Failed to retrieve PDP:", error);
+    res.status(500).json({ error: "Failed to retrieve PDP." }).end();
+  }
+});
+
 
 
 const upload = multer({ storage: multer.memoryStorage() });
