@@ -164,6 +164,24 @@ app.get('/api/skills/:companyId', async (req, res) => {
 });
 
 
+//Create a New Skill for a Company
+app.post('/api/skills', async (req, res) => {
+  const { skillName, companyId } = req.body;
+
+  try {
+    const newSkill = await prisma.snipxSkill.create({
+      data: {
+        skill_name: skillName,
+        company_id: parseInt(companyId),
+      },
+    });
+
+    res.status(201).json(newSkill).end();
+  } catch (error) {
+    console.error("Failed to create skill:", error);
+    res.status(500).json({ error: "Failed to create skill." }).end();
+  }
+});
 
 
 
