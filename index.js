@@ -241,6 +241,51 @@ app.get('/api/users/:userId/ratings', async (req, res) => {
   }
 });
 
+//Create or Update a Skill Rating for a User
+app.post('/api/users/:userId/ratings', async (req, res) => {
+  const { userId } = req.params;
+  const { skillId, score } = req.body;
+
+  try {
+    const existingRating = await prisma.snipxRating.findUnique({
+      where: {
+        user_id_skill_id: {
+          user_id: parseInt(userId),
+          skill_id: parseInt(skillId),
+        },
+      },
+    });
+
+    let rating;
+
+    if (existingRating) {
+      // Update existing rating
+      rating = await prisma.snipxRating.update({
+        where: {
+          user_id_skill_id: {
+            user_id: parseInt(userId),
+            skill_id: parseInt(skillId),
+          },
+        },
+        data: { score: score },
+      });
+    } else {
+      // Create new rating
+      rating = await prisma.snipxRating.create({
+        data: {
+          user_id: parseInt(userId),
+          skill_id: parseInt(skillId),
+          score: score,
+        },
+      });
+    }
+
+    res.status(200).json(rating).end();
+  } catch (error) {
+    console.error("Failed to upsert rating:", error);
+    res.status(500).json({ error: "Failed to upsert rating." }).end();
+  }
+});
 
 
 
