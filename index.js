@@ -138,6 +138,34 @@ app.get('/api/getPDP/:userId', async (req, res) => {
 });
 
 
+// Get All Skills for a Company
+app.get('/api/skills/:companyId', async (req, res) => {
+  const { companyId } = req.params;
+
+  try {
+    const skills = await prisma.snipxSkill.findMany({
+      where: { company_id: parseInt(companyId) },
+      select: {
+        id: true,
+        skill_name: true,
+        ratings: {
+          select: {
+            score: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json(skills).end();
+  } catch (error) {
+    console.error("Failed to fetch skills:", error);
+    res.status(500).json({ error: "Failed to fetch skills." }).end();
+  }
+});
+
+
+
+
 
 const upload = multer({ storage: multer.memoryStorage() });
 
