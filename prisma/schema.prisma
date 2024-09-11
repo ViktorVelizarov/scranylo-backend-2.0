@@ -24,40 +24,44 @@ model Users {
 }
 
 
+
 model Snipx_Users {
-  id          Int                @id @default(autoincrement())
-  email       String?            @db.VarChar(250)
-  role        String?            @db.VarChar(100)
-  managedBy   Int?     
+  id                Int                @id @default(autoincrement())
+  email             String?            @db.VarChar(250)
+  role              String?            @db.VarChar(100)
+  managedBy         Int?     
   profilePictureUrl String?   
-  PDP String?      
-  manager     Snipx_Users?       @relation("ManagedBy", fields: [managedBy], references: [id])
-  subordinates Snipx_Users[]     @relation("ManagedBy")
-  snippets    SnipxSnippet[]
-
+  PDP               String?      
+  manager           Snipx_Users?       @relation("ManagedBy", fields: [managedBy], references: [id])
+  subordinates      Snipx_Users[]      @relation("ManagedBy")
+  snippets          SnipxSnippet[]
+  
   // Relation to SnipxUserCompany
-  company     SnipxUserCompany?  @relation("UserToCompany")
-
+  company           SnipxUserCompany?  @relation("UserToCompany")
+  
   // New relation to SnipxUserTeam for teams
-  userTeams   SnipxUserTeam[]    @relation("UserToTeam")
+  userTeams         SnipxUserTeam[]    @relation("UserToTeam")
+
+  // New relation to SnipxRating for skill ratings
+  ratings           SnipxRating[]      @relation("UserToRatings")
 
   @@map("snipx_users")
 }
 
 model SnipxSnippet {
-  id                   Int           @id @default(autoincrement())
-  user_id              Int?          
-  type            String?       @db.VarChar(100)  
-  date              String?       @db.VarChar(250) 
-  text                 String?       @db.VarChar(1500)                   
-  green                Json?         
-  orange               Json?         
-  red                  Json?         
-  sentiment            String?       @db.VarChar(100)  
-  score                String?       @db.VarChar(100)  
-  explanations         String?       @db.VarChar(1500)                         
+  id           Int           @id @default(autoincrement())
+  user_id      Int?          
+  type         String?       @db.VarChar(100)  
+  date         String?       @db.VarChar(250) 
+  text         String?       @db.VarChar(1500)                   
+  green        Json?         
+  orange       Json?         
+  red          Json?         
+  sentiment    String?       @db.VarChar(100)  
+  score        String?       @db.VarChar(100)  
+  explanations String?       @db.VarChar(1500)                         
 
-  user                 Snipx_Users?  @relation(fields: [user_id], references: [id])
+  user         Snipx_Users?  @relation(fields: [user_id], references: [id])
 
   @@map("snipx_snippets")
 }
@@ -71,6 +75,9 @@ model Snipx_Company {
 
   // New relation to SnipxTeams for teams
   teams         SnipxTeams[]       @relation("CompanyToTeams")
+  
+  // New relation to SnipxSkill for company-specific skills
+  skills        SnipxSkill[]       @relation("CompanyToSkills")
 
   @@map("snipx_company")
 }
@@ -88,15 +95,16 @@ model SnipxUserCompany {
 }
 
 model SnipxTeams {
-  id          Int            @id @default(autoincrement())
-  team_name   String         @db.VarChar(250)
-  company_id  Int
-  average_score  Float?
+  id            Int            @id @default(autoincrement())
+  team_name     String         @db.VarChar(250)
+  company_id    Int
+  average_score Float?
+  
   // Relation to Snipx_Company
-  company     Snipx_Company  @relation("CompanyToTeams", fields: [company_id], references: [id])
+  company       Snipx_Company  @relation("CompanyToTeams", fields: [company_id], references: [id])
   
   // Relation to SnipxUserTeam for team members
-  teamMembers SnipxUserTeam[] @relation("TeamToMembers")
+  teamMembers   SnipxUserTeam[] @relation("TeamToMembers")
 
   @@map("snipx_teams")
 }
@@ -115,6 +123,40 @@ model SnipxUserTeam {
   @@unique([user_id, team_id])  // Ensures a user can only be in a team once
 
   @@map("snipx_user_team")
+}
+
+model SnipxSkill {
+  id          Int            @id @default(autoincrement())
+  skill_name  String         @db.VarChar(250)
+  company_id  Int
+
+  // Relation to Snipx_Company
+  company     Snipx_Company  @relation("CompanyToSkills", fields: [company_id], references: [id])
+  
+  // Relation to SnipxRating for ratings on this skill
+  ratings     SnipxRating[]  @relation("SkillToRatings")
+
+  @@unique([company_id, skill_name])  // Ensures unique skills per company
+
+  @@map("snipx_skill")
+}
+
+model SnipxRating {
+  id          Int           @id @default(autoincrement())
+  user_id     Int
+  skill_id    Int
+  score       Int           @db.Int
+  created_at  DateTime       @default(now())
+
+  // Relation to Snipx_Users
+  user        Snipx_Users   @relation("UserToRatings", fields: [user_id], references: [id])
+  
+  // Relation to SnipxSkill
+  skill       SnipxSkill    @relation("SkillToRatings", fields: [skill_id], references: [id])
+
+  @@unique([user_id, skill_id])  // Ensures a user can only be rated once per skill
+
+  @@map("snipx_rating")
 }
 
 
