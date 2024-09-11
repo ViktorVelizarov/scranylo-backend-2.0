@@ -219,6 +219,30 @@ app.delete('/api/skills/:skillId', async (req, res) => {
 });
 
 
+//Get Skill Ratings for a User
+app.get('/api/users/:userId/ratings', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const ratings = await prisma.snipxRating.findMany({
+      where: { user_id: parseInt(userId) },
+      select: {
+        score: true,
+        skill: {
+          select: { skill_name: true },
+        },
+      },
+    });
+
+    res.status(200).json(ratings).end();
+  } catch (error) {
+    console.error("Failed to fetch ratings:", error);
+    res.status(500).json({ error: "Failed to fetch ratings." }).end();
+  }
+});
+
+
+
 
 
 const upload = multer({ storage: multer.memoryStorage() });
