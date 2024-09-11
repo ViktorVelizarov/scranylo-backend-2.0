@@ -202,6 +202,23 @@ app.put('/api/skills/:skillId', async (req, res) => {
   }
 });
 
+//Delete a Skill by ID
+app.delete('/api/skills/:skillId', async (req, res) => {
+  const { skillId } = req.params;
+
+  try {
+    await prisma.snipxSkill.delete({
+      where: { id: parseInt(skillId) },
+    });
+
+    res.status(200).json({ message: "Skill deleted successfully." }).end();
+  } catch (error) {
+    console.error("Failed to delete skill:", error);
+    res.status(500).json({ error: "Failed to delete skill." }).end();
+  }
+});
+
+
 
 
 const upload = multer({ storage: multer.memoryStorage() });
