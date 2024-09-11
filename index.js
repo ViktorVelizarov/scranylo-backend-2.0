@@ -138,9 +138,12 @@ app.get('/api/getPDP/:userId', async (req, res) => {
 });
 
 
+
+
 // Get All Skills for a Company
 app.get('/api/skills/:companyId', async (req, res) => {
   const { companyId } = req.params;
+  console.log(`Fetching skills for companyId: ${companyId}`);
 
   try {
     const skills = await prisma.snipxSkill.findMany({
@@ -156,6 +159,7 @@ app.get('/api/skills/:companyId', async (req, res) => {
       },
     });
 
+    console.log('Skills fetched successfully:', skills);
     res.status(200).json(skills).end();
   } catch (error) {
     console.error("Failed to fetch skills:", error);
@@ -163,10 +167,10 @@ app.get('/api/skills/:companyId', async (req, res) => {
   }
 });
 
-
-//Create a New Skill for a Company
+// Create a New Skill for a Company
 app.post('/api/skills', async (req, res) => {
   const { skillName, companyId } = req.body;
+  console.log(`Creating skill: ${skillName} for companyId: ${companyId}`);
 
   try {
     const newSkill = await prisma.snipxSkill.create({
@@ -176,6 +180,7 @@ app.post('/api/skills', async (req, res) => {
       },
     });
 
+    console.log('Skill created successfully:', newSkill);
     res.status(201).json(newSkill).end();
   } catch (error) {
     console.error("Failed to create skill:", error);
@@ -183,11 +188,11 @@ app.post('/api/skills', async (req, res) => {
   }
 });
 
-
 // Update a Skill by ID
 app.put('/api/skills/:skillId', async (req, res) => {
   const { skillId } = req.params;
   const { skillName } = req.body;
+  console.log(`Updating skillId: ${skillId} to new name: ${skillName}`);
 
   try {
     const updatedSkill = await prisma.snipxSkill.update({
@@ -195,6 +200,7 @@ app.put('/api/skills/:skillId', async (req, res) => {
       data: { skill_name: skillName },
     });
 
+    console.log('Skill updated successfully:', updatedSkill);
     res.status(200).json(updatedSkill).end();
   } catch (error) {
     console.error("Failed to update skill:", error);
@@ -202,15 +208,17 @@ app.put('/api/skills/:skillId', async (req, res) => {
   }
 });
 
-//Delete a Skill by ID
+// Delete a Skill by ID
 app.delete('/api/skills/:skillId', async (req, res) => {
   const { skillId } = req.params;
+  console.log(`Deleting skillId: ${skillId}`);
 
   try {
     await prisma.snipxSkill.delete({
       where: { id: parseInt(skillId) },
     });
 
+    console.log('Skill deleted successfully:', skillId);
     res.status(200).json({ message: "Skill deleted successfully." }).end();
   } catch (error) {
     console.error("Failed to delete skill:", error);
@@ -218,10 +226,10 @@ app.delete('/api/skills/:skillId', async (req, res) => {
   }
 });
 
-
-//Get Skill Ratings for a User
+// Get Skill Ratings for a User
 app.get('/api/users/:userId/ratings', async (req, res) => {
   const { userId } = req.params;
+  console.log(`Fetching skill ratings for userId: ${userId}`);
 
   try {
     const ratings = await prisma.snipxRating.findMany({
@@ -234,6 +242,7 @@ app.get('/api/users/:userId/ratings', async (req, res) => {
       },
     });
 
+    console.log('Ratings fetched successfully:', ratings);
     res.status(200).json(ratings).end();
   } catch (error) {
     console.error("Failed to fetch ratings:", error);
@@ -241,10 +250,11 @@ app.get('/api/users/:userId/ratings', async (req, res) => {
   }
 });
 
-//Create or Update a Skill Rating for a User
+// Create or Update a Skill Rating for a User
 app.post('/api/users/:userId/ratings', async (req, res) => {
   const { userId } = req.params;
   const { skillId, score } = req.body;
+  console.log(`Upserting rating for userId: ${userId}, skillId: ${skillId}, score: ${score}`);
 
   try {
     const existingRating = await prisma.snipxRating.findUnique({
@@ -269,6 +279,8 @@ app.post('/api/users/:userId/ratings', async (req, res) => {
         },
         data: { score: score },
       });
+
+      console.log('Rating updated successfully:', rating);
     } else {
       // Create new rating
       rating = await prisma.snipxRating.create({
@@ -278,6 +290,8 @@ app.post('/api/users/:userId/ratings', async (req, res) => {
           score: score,
         },
       });
+
+      console.log('Rating created successfully:', rating);
     }
 
     res.status(200).json(rating).end();
@@ -286,6 +300,7 @@ app.post('/api/users/:userId/ratings', async (req, res) => {
     res.status(500).json({ error: "Failed to upsert rating." }).end();
   }
 });
+
 
 
 
