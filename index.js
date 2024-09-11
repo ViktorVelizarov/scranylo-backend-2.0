@@ -184,6 +184,25 @@ app.post('/api/skills', async (req, res) => {
 });
 
 
+// Update a Skill by ID
+app.put('/api/skills/:skillId', async (req, res) => {
+  const { skillId } = req.params;
+  const { skillName } = req.body;
+
+  try {
+    const updatedSkill = await prisma.snipxSkill.update({
+      where: { id: parseInt(skillId) },
+      data: { skill_name: skillName },
+    });
+
+    res.status(200).json(updatedSkill).end();
+  } catch (error) {
+    console.error("Failed to update skill:", error);
+    res.status(500).json({ error: "Failed to update skill." }).end();
+  }
+});
+
+
 
 const upload = multer({ storage: multer.memoryStorage() });
 
