@@ -129,6 +129,11 @@ model SnipxSkill {
   id          Int            @id @default(autoincrement())
   skill_name  String         @db.VarChar(250)
   company_id  Int
+  desc1       String?        @db.VarChar(255)
+  desc2       String?        @db.VarChar(255)
+  desc3       String?        @db.VarChar(255)
+  desc4       String?        @db.VarChar(255)
+  desc5       String?        @db.VarChar(255)
 
   // Relation to Snipx_Company
   company     Snipx_Company  @relation("CompanyToSkills", fields: [company_id], references: [id])

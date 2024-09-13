@@ -137,6 +137,27 @@ app.get('/api/getPDP/:userId', async (req, res) => {
   }
 });
 
+// Get Company ID for a User
+app.get('/api/users/:userId/company', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const userCompany = await prisma.snipxUserCompany.findUnique({
+      where: { user_id: parseInt(userId) },
+      select: { company_id: true },
+    });
+
+    if (userCompany) {
+      res.status(200).json({ companyId: userCompany.company_id }).end();
+    } else {
+      res.status(404).json({ error: "User not found or not associated with any company." }).end();
+    }
+  } catch (error) {
+    console.error("Failed to fetch company ID:", error);
+    res.status(500).json({ error: "Failed to fetch company ID." }).end();
+  }
+});
+
 
 
 
@@ -151,6 +172,11 @@ app.get('/api/skills/:companyId', async (req, res) => {
       select: {
         id: true,
         skill_name: true,
+        desc1: true,
+        desc2: true,
+        desc3: true,
+        desc4: true,
+        desc5: true,
         ratings: {
           select: {
             score: true,
@@ -169,7 +195,7 @@ app.get('/api/skills/:companyId', async (req, res) => {
 
 // Create a New Skill for a Company
 app.post('/api/skills', async (req, res) => {
-  const { skillName, companyId } = req.body;
+  const { skillName, companyId, desc1, desc2, desc3, desc4, desc5 } = req.body;
   console.log(`Creating skill: ${skillName} for companyId: ${companyId}`);
 
   try {
@@ -177,6 +203,11 @@ app.post('/api/skills', async (req, res) => {
       data: {
         skill_name: skillName,
         company_id: parseInt(companyId),
+        desc1,
+        desc2,
+        desc3,
+        desc4,
+        desc5,
       },
     });
 
@@ -188,16 +219,24 @@ app.post('/api/skills', async (req, res) => {
   }
 });
 
+
 // Update a Skill by ID
 app.put('/api/skills/:skillId', async (req, res) => {
   const { skillId } = req.params;
-  const { skillName } = req.body;
+  const { skillName, desc1, desc2, desc3, desc4, desc5 } = req.body;
   console.log(`Updating skillId: ${skillId} to new name: ${skillName}`);
 
   try {
     const updatedSkill = await prisma.snipxSkill.update({
       where: { id: parseInt(skillId) },
-      data: { skill_name: skillName },
+      data: {
+        skill_name: skillName,
+        desc1,
+        desc2,
+        desc3,
+        desc4,
+        desc5,
+      },
     });
 
     console.log('Skill updated successfully:', updatedSkill);
@@ -207,6 +246,7 @@ app.put('/api/skills/:skillId', async (req, res) => {
     res.status(500).json({ error: "Failed to update skill." }).end();
   }
 });
+
 
 // Delete a Skill by ID
 app.delete('/api/skills/:skillId', async (req, res) => {
@@ -237,7 +277,7 @@ app.get('/api/users/:userId/ratings', async (req, res) => {
       select: {
         score: true,
         skill: {
-          select: { skill_name: true },
+          select: { id: true },
         },
       },
     });
