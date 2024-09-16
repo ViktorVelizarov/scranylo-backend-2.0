@@ -1017,7 +1017,7 @@ async function createOrUpdatePDPDoc(user) {
       },
     ];
 
-    // Retrieve the current document length
+    // Retrieve the current document content
     const docRes = await docs.documents.get({
       documentId: documentId,
     });
@@ -1029,8 +1029,7 @@ async function createOrUpdatePDPDoc(user) {
       return length;
     }, 0);
 
-    // Only delete content if there's something to delete
-    if (docLength > 0) {
+    if (docLength > 1) {
       const endIndex = Math.min(1000000, docLength);
 
       // Clear the existing content and update with new PDP content
@@ -1052,7 +1051,8 @@ async function createOrUpdatePDPDoc(user) {
         },
       });
     } else {
-      console.log(`Document is empty, skipping content deletion.`);
+      // If the document is empty, just insert new content without deleting
+      console.log(`Document is empty, skipping content deletion for ${user.email}. Inserting PDP content.`);
       await docs.documents.batchUpdate({
         documentId: documentId,
         requestBody: {
@@ -1079,6 +1079,7 @@ async function createOrUpdatePDPDoc(user) {
   }
 }
 
+
 // API endpoint to create or update Google Docs with PDPs
 app.post('/api/update-google-pdps', async (req, res) => {
   try {
@@ -1104,9 +1105,6 @@ app.post('/api/update-google-pdps', async (req, res) => {
     res.status(500).send('Internal Server Error');
   }
 });
-
-
-
 
 
 
