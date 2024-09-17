@@ -31,7 +31,8 @@ model Snipx_Users {
   role              String?            @db.VarChar(100)
   managedBy         Int?     
   profilePictureUrl String?   
-  PDP               String?      
+  PDP               String?   
+  AI_PDP            String?      
   manager           Snipx_Users?       @relation("ManagedBy", fields: [managedBy], references: [id])
   subordinates      Snipx_Users[]      @relation("ManagedBy")
   snippets          SnipxSnippet[]

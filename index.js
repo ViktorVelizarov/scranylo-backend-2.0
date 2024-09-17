@@ -10,6 +10,8 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 
+
+
 const { google } = require("googleapis");
 
 const { getAuth } = require("firebase-admin/auth");
@@ -115,6 +117,71 @@ app.post('/api/uploadPDP', async (req, res) => {
     res.status(500).json({ error: "Failed to upload PDP." }).end();
   }
 });
+
+app.post('/api/analyzePDP', async (req, res) => {
+  const { PDPText } = req.body; // Destructure PDPText from the request body
+
+  console.log("Received PDP for analysis:", PDPText);
+
+  try {
+    // Validate the input
+    if (!PDPText) {
+      console.log("Invalid request: Missing PDP text");
+      return res.status(400).json({ error: "PDP text is required." }).end();
+    }
+
+    // Create the prompt for the OpenAI model
+    const promptText = `Analyze this Personal Development Plan for me: "${PDPText}"`;
+
+    // Call OpenAI API to get the analysis
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "system", content: promptText }],
+
+    });
+
+    // Extract the analysis result
+    const analysisResult = completion.choices[0].message.content;
+
+    console.log("AI PDP analysis result:", analysisResult);
+
+    // Return the AI analysis result
+    res.status(200).json({ AIAnalysis: analysisResult }).end();
+  } catch (error) {
+    console.error("Failed to analyze PDP:", error);
+    res.status(500).json({ error: "Failed to analyze PDP." }).end();
+  }
+});
+
+app.post('/api/uploadAIPDP', async (req, res) => {
+  const { userId, PDPText } = req.body; // Destructure userId and PDPText from the request body
+
+  console.log("userID:", parseInt(userId));
+  console.log("Received PDP for upload:", PDPText);
+
+  try {
+    // Validate the input
+    if (!userId || !PDPText) {
+      console.log("Invalid request: Missing userId or PDP text");
+      return res.status(400).json({ error: "User ID and PDP text are required." }).end();
+    }
+
+    // Store the provided PDPText directly in the AI_PDP field in the database
+    const updatedUser = await prisma.snipx_Users.update({
+      where: { id: parseInt(userId) }, // Ensure userId is an integer
+      data: {
+        AI_PDP: PDPText, // Save the provided PDPText in the AI_PDP field
+      },
+    });
+
+    console.log("PDP uploaded successfully to AI_PDP field:", updatedUser);
+    res.status(200).json(updatedUser).end();
+  } catch (error) {
+    console.error("Failed to upload PDP to AI_PDP field:", error);
+    res.status(500).json({ error: "Failed to upload PDP." }).end();
+  }
+});
+
 
 //get the PDP text of a given user from the snippets users table
 app.get('/api/getPDP/:userId', async (req, res) => {
