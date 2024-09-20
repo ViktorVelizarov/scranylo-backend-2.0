@@ -1,6 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const nodemailer = require("nodemailer");
 const admin = require("firebase-admin");
 const OpenAI = require("openai");
 const { z } = require("zod");
@@ -87,6 +88,49 @@ app.use(cors());
 // Increase the limit for the JSON body parser
 app.use(express.json({ limit: '10mb' }));  // Set limit to 10MB
 app.use(bodyParser.urlencoded({ extended: false, limit: '10mb' }));
+
+
+
+// Create a reusable transporter object using the default SMTP transport
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,  // Gmail address from .env file
+    pass: process.env.EMAIL_PASS,  // Gmail password or App Password from .env file
+  },
+});
+
+// API endpoint to send an email
+app.post('/api/sendEmail', async (req, res) => {
+  const { email } = req.body;
+
+  // Validate the input
+  if (!email) {
+    return res.status(400).json({ error: "Email is required." });
+  }
+
+  const subject = "Welcome to our platform";
+  const message = "Hello! We're excited to have you on board. Here is some important information to get you started...";
+  console.log("user:",process.env.EMAIL_USER )
+  console.log("pass:",process.env.EMAIL_PASS )
+  
+  const mailOptions = {
+    from: process.env.EMAIL_USER,  // Sender address (your email)
+    to: email,                     // Receiver's email address
+    subject: subject,              // Hardcoded subject
+    text: message,                 // Hardcoded message
+  };
+
+  try {
+    // Send the email
+    await transporter.sendMail(mailOptions);
+    console.log(`Email sent to ${email}`);
+    res.status(200).json({ success: `Email sent to ${email}` });
+  } catch (error) {
+    console.error("Error sending email:", error);
+    res.status(500).json({ error: "Failed to send email." });
+  }
+});
 
 
 //uplaod a PDP to a given user in the snippets user table
@@ -342,6 +386,7 @@ app.get('/api/users/:userId/ratings', async (req, res) => {
       where: { user_id: parseInt(userId) },
       select: {
         score: true,
+        created_at: true,
         skill: {
           select: { id: true },
         },
@@ -356,54 +401,28 @@ app.get('/api/users/:userId/ratings', async (req, res) => {
   }
 });
 
-// Create or Update a Skill Rating for a User
+// Create a new Skill Rating for a User
 app.post('/api/users/:userId/ratings', async (req, res) => {
   const { userId } = req.params;
   const { skillId, score } = req.body;
-  console.log(`Upserting rating for userId: ${userId}, skillId: ${skillId}, score: ${score}`);
+  console.log(`Creating new rating for userId: ${userId}, skillId: ${skillId}, score: ${score}`);
 
   try {
-    const existingRating = await prisma.snipxRating.findUnique({
-      where: {
-        user_id_skill_id: {
-          user_id: parseInt(userId),
-          skill_id: parseInt(skillId),
-        },
+    // Create a new rating
+    const rating = await prisma.snipxRating.create({
+      data: {
+        user_id: parseInt(userId),
+        skill_id: parseInt(skillId),
+        score: score,
+        created_at: new Date(), // Use the current timestamp
       },
     });
 
-    let rating;
-
-    if (existingRating) {
-      // Update existing rating
-      rating = await prisma.snipxRating.update({
-        where: {
-          user_id_skill_id: {
-            user_id: parseInt(userId),
-            skill_id: parseInt(skillId),
-          },
-        },
-        data: { score: score },
-      });
-
-      console.log('Rating updated successfully:', rating);
-    } else {
-      // Create new rating
-      rating = await prisma.snipxRating.create({
-        data: {
-          user_id: parseInt(userId),
-          skill_id: parseInt(skillId),
-          score: score,
-        },
-      });
-
-      console.log('Rating created successfully:', rating);
-    }
-
+    console.log('Rating created successfully:', rating);
     res.status(200).json(rating).end();
   } catch (error) {
-    console.error("Failed to upsert rating:", error);
-    res.status(500).json({ error: "Failed to upsert rating." }).end();
+    console.error("Failed to create rating:", error);
+    res.status(500).json({ error: "Failed to create rating." }).end();
   }
 });
 
