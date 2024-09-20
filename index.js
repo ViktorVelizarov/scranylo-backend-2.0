@@ -100,37 +100,47 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// API endpoint to send an email
 app.post('/api/sendEmail', async (req, res) => {
-  const { email } = req.body;
-
-  // Validate the input
-  if (!email) {
-    return res.status(400).json({ error: "Email is required." });
-  }
-
-  const subject = "Welcome to our platform";
-  const message = "Hello! We're excited to have you on board. Here is some important information to get you started...";
-  console.log("user:",process.env.EMAIL_USER )
-  console.log("pass:",process.env.EMAIL_PASS )
-  
-  const mailOptions = {
-    from: process.env.EMAIL_USER,  // Sender address (your email)
-    to: email,                     // Receiver's email address
-    subject: subject,              // Hardcoded subject
-    text: message,                 // Hardcoded message
-  };
-
   try {
-    // Send the email
-    await transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${email}`);
-    res.status(200).json({ success: `Email sent to ${email}` });
+    // Get all users from the Snipx_Users table
+    const users = await prisma.snipx_Users.findMany({
+      where: {
+        email: {
+          not: null,  // Ensure we only get users with email addresses
+        },
+      },
+      select: {
+        email: true, // Only select the email field
+      },
+    });
+
+    if (!users.length) {
+      return res.status(404).json({ error: "No users with valid emails found." });
+    }
+
+    const subject = "SnipX Snippet Reminder!";
+    const message = "Hello, this is an automated message sent every 24h! Dont forget to fill in your snippet for the day in the SnipX app. ";
+
+    // Send an email to each user
+    for (const user of users) {
+      const mailOptions = {
+        from: process.env.EMAIL_USER,  // Sender address (your email)
+        to: user.email,                // Receiver's email address from the database
+        subject: subject,              // Hardcoded subject
+        text: message,                 // Hardcoded message
+      };
+
+      await transporter.sendMail(mailOptions);
+    }
+
+    console.log(`Emails sent to ${users.length} users.`);
+    res.status(200).json({ success: `Emails sent to ${users.length} users.` });
   } catch (error) {
-    console.error("Error sending email:", error);
-    res.status(500).json({ error: "Failed to send email." });
+    console.error("Error sending emails:", error);
+    res.status(500).json({ error: "Failed to send emails." });
   }
 });
+
 
 
 //uplaod a PDP to a given user in the snippets user table
