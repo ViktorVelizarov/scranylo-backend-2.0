@@ -141,7 +141,7 @@ app.get('/api/tasks/:companyID', async (req, res) => {
       where: {
         company_id: parseInt(companyID),
       },
-      select: {
+      select: {   
         id: true,
         task_name: true,
         task_description: true,
@@ -157,6 +157,30 @@ app.get('/api/tasks/:companyID', async (req, res) => {
   }
 });
 
+// Create a new task
+app.post('/api/tasks', async (req, res) => {
+  const { task_name, task_description, task_type, company_id } = req.body;
+
+  if (!task_name || !company_id) {
+    return res.status(400).json({ error: 'Task name and company ID are required.' }).end();
+  }
+
+  try {
+    const newTask = await prisma.snipxTask.create({
+      data: {
+        task_name,
+        task_description: task_description || null,
+        task_type: task_type || null,
+        company_id: parseInt(company_id),
+      },
+    });
+
+    res.status(201).json(newTask).end();
+  } catch (error) {
+    console.error('Error creating new task:', error);
+    res.status(500).json({ error: 'Failed to create new task.' }).end();
+  }
+});
 
 
 
