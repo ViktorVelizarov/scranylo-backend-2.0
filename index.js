@@ -100,6 +100,66 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Get All Skills for a Company
+app.get('/api/skills/:companyId', async (req, res) => {
+  const { companyId } = req.params;
+  console.log(`Fetching skills for companyId: ${companyId}`);
+
+  try {
+    const skills = await prisma.snipxSkill.findMany({
+      where: { company_id: parseInt(companyId) },
+      select: {
+        id: true,
+        skill_name: true,
+        desc1: true,
+        desc2: true,
+        desc3: true,
+        desc4: true,
+        desc5: true,
+        ratings: {
+          select: {
+            score: true,
+          },
+        },
+      },
+    });
+
+    console.log('Skills fetched successfully:', skills);
+    res.status(200).json(skills).end();
+  } catch (error) {
+    console.error("Failed to fetch skills:", error);
+    res.status(500).json({ error: "Failed to fetch skills." }).end();
+  }
+});
+
+// Get all tasks for a specific company
+app.get('/api/tasks/:companyID', async (req, res) => {
+  const { companyID } = req.params;
+
+  try {
+    const tasks = await prisma.snipxTask.findMany({
+      where: {
+        company_id: parseInt(companyID),
+      },
+      select: {
+        id: true,
+        task_name: true,
+        task_description: true,
+        task_type: true,
+        created_at: true,
+      },
+    });
+
+    res.status(200).json(tasks).end();
+  } catch (error) {
+    console.error('Error fetching tasks for company:', error);
+    res.status(500).json({ error: 'Failed to fetch tasks for company.' }).end();
+  }
+});
+
+
+
+
 app.post('/api/sendEmail', async (req, res) => {
   try {
     // Get all users from the Snipx_Users table
