@@ -182,6 +182,33 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
+// Delete a task by ID
+app.delete('/api/tasks/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Check if the task exists
+    const taskExists = await prisma.snipxTask.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (!taskExists) {
+      return res.status(404).json({ error: 'Task not found.' }).end();
+    }
+
+    // Delete the task
+    await prisma.snipxTask.delete({
+      where: { id: parseInt(id) },
+    });
+
+    res.status(200).json({ message: 'Task deleted successfully.' }).end();
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    res.status(500).json({ error: 'Failed to delete task.' }).end();
+  }
+});
+
+
 
 
 app.post('/api/sendEmail', async (req, res) => {
