@@ -168,7 +168,35 @@ app.get('/api/tasks/:companyID', async (req, res) => {
   }
 });
 
+// Endpoint to add skills to a task
+router.post('/api/tasks/:taskId/assign-skills', async (req, res) => {
+  const { taskId } = req.params;
+  const { skill_ids, score } = req.body;
 
+  if (!Array.isArray(skill_ids) || skill_ids.length === 0 || typeof score !== 'number') {
+    return res.status(400).json({ error: 'Invalid input data.' });
+  }
+
+  try {
+    // Loop through each skill_id and create a new entry in SnipxTaskSkill
+    const assignments = await Promise.all(
+      skill_ids.map(skill_id => {
+        return prisma.snipxTaskSkill.create({
+          data: {
+            task_id: taskId,
+            skill_id: skill_id,
+            score: score,
+          },
+        });
+      })
+    );
+
+    return res.status(201).json({ message: 'Skills assigned to task successfully!', assignments });
+  } catch (error) {
+    console.error('Error assigning skills to task:', error);
+    return res.status(500).json({ error: 'Failed to assign skills to task.' });
+  }
+});
 
 // Create a new task
 app.post('/api/tasks', async (req, res) => {
