@@ -132,7 +132,7 @@ app.get('/api/skills/:companyId', async (req, res) => {
   }
 });
 
-// Get all tasks for a specific company
+// Get all tasks for a specific company, including whether users are assigned
 app.get('/api/tasks/:companyID', async (req, res) => {
   const { companyID } = req.params;
 
@@ -141,21 +141,34 @@ app.get('/api/tasks/:companyID', async (req, res) => {
       where: {
         company_id: parseInt(companyID),
       },
-      select: {   
+      select: {
         id: true,
         task_name: true,
         task_description: true,
         task_type: true,
         created_at: true,
+        assignedUsers: {  // Correctly reference the assignedUsers relation
+          select: {
+            user_id: true,  // Include user_id or any other user fields you need
+          },
+        },
       },
     });
 
-    res.status(200).json(tasks).end();
+    // Map tasks and include a flag if users are assigned
+    const tasksWithUserAssignment = tasks.map((task) => ({
+      ...task,
+      hasUsersAssigned: task.assignedUsers.length > 0,  // Check if there are any assigned users
+    }));
+
+    res.status(200).json(tasksWithUserAssignment).end();
   } catch (error) {
     console.error('Error fetching tasks for company:', error);
     res.status(500).json({ error: 'Failed to fetch tasks for company.' }).end();
   }
 });
+
+
 
 // Create a new task
 app.post('/api/tasks', async (req, res) => {
