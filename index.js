@@ -497,6 +497,38 @@ app.delete('/api/skills/:skillId', async (req, res) => {
   }
 });
 
+
+// Assign multiple users to a task
+app.post('/api/tasks/assign-users', async (req, res) => {
+  const { task_id, user_ids } = req.body;
+
+  if (!task_id || !user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {
+    return res.status(400).json({ error: 'Task ID and an array of user IDs are required.' }).end();
+  }
+
+  try {
+    // Ensure all user-task relations are added to the SnipxTaskUser table
+    const createTaskUserRelations = user_ids.map((userId) =>
+      prisma.snipxTaskUser.create({
+        data: {
+          task_id: parseInt(task_id),
+          user_id: parseInt(userId),
+        },
+      })
+    );
+
+    // Wait for all the user-task relations to be created
+    await Promise.all(createTaskUserRelations);
+
+    res.status(200).json({ message: 'Users successfully assigned to the task.' }).end();
+  } catch (error) {
+    console.error('Error assigning users to task:', error);
+    res.status(500).json({ error: 'Failed to assign users to task.' }).end();
+  }
+});
+
+
+
 // Get Skill Ratings for a User
 app.get('/api/users/:userId/ratings', async (req, res) => {
   const { userId } = req.params;
