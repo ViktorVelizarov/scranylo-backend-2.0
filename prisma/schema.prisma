@@ -137,7 +137,7 @@ model SnipxUserTeam {
 model SnipxSkill {
   id          Int            @id @default(autoincrement())
   skill_name  String         @db.VarChar(250)
-  company_id  Int
+  company_id  Int?           // Make this field nullable
   desc1       String?        @db.VarChar(255)
   desc2       String?        @db.VarChar(255)
   desc3       String?        @db.VarChar(255)
@@ -145,18 +145,16 @@ model SnipxSkill {
   desc5       String?        @db.VarChar(255)
 
   // Relation to Snipx_Company
-  company     Snipx_Company  @relation("CompanyToSkills", fields: [company_id], references: [id])
+  company     Snipx_Company?  @relation("CompanyToSkills", fields: [company_id], references: [id])
 
-  // Relation to SnipxRating for ratings on this skill
   ratings     SnipxRating[]  @relation("SkillToRatings")
-
-  // Relation to SnipxTaskSkill for task-specific skills
   taskSkills  SnipxTaskSkill[] @relation("TaskToSkills")
 
-  @@unique([company_id, skill_name])  // Ensures unique skills per company
+  @@unique([company_id, skill_name])
 
   @@map("snipx_skill")
 }
+
 
 
 model SnipxRating {

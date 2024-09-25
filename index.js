@@ -168,23 +168,46 @@ app.get('/api/tasks/:companyID', async (req, res) => {
   }
 });
 
-// Endpoint to add skills to a task
-router.post('/api/tasks/:taskId/assign-skills', async (req, res) => {
-  const { taskId } = req.params;
-  const { skill_ids, score } = req.body;
+// Endpoint to get all skills with a null company_id
+app.get('/api/skills-no-company', async (req, res) => {
+  try {
+    const skills = await prisma.snipxSkill.findMany({
+      where: {
+        company_id: null,
+      },
+    });
 
-  if (!Array.isArray(skill_ids) || skill_ids.length === 0 || typeof score !== 'number') {
+    return res.status(200).json(skills);
+  } catch (error) {
+    console.error('Error fetching skills with null company_id:', error);
+    return res.status(500).json({ error: 'Failed to fetch skills.' });
+  }
+});
+
+// Endpoint to add skills to a task
+app.post('/api/tasks/:taskId/assign-skills', async (req, res) => {
+  const { taskId } = req.params;
+  let { skill_ids, score } = req.body;
+
+  // Ensure skill_ids is an array and score is a number
+  score = Number(score); // Convert score to a number
+  console.log("received ids:", skill_ids);
+  console.log("received score:", score);
+
+  if (!Array.isArray(skill_ids) || skill_ids.length === 0 || isNaN(score)) {
     return res.status(400).json({ error: 'Invalid input data.' });
   }
 
   try {
+    console.log("test");
+
     // Loop through each skill_id and create a new entry in SnipxTaskSkill
     const assignments = await Promise.all(
       skill_ids.map(skill_id => {
         return prisma.snipxTaskSkill.create({
           data: {
-            task_id: taskId,
-            skill_id: skill_id,
+            task: { connect: { id: parseInt(taskId) } }, // Connect to the task
+            skill: { connect: { id: parseInt(skill_id) } }, // Connect to the skill
             score: score,
           },
         });
@@ -197,6 +220,8 @@ router.post('/api/tasks/:taskId/assign-skills', async (req, res) => {
     return res.status(500).json({ error: 'Failed to assign skills to task.' });
   }
 });
+
+
 
 // Create a new task
 app.post('/api/tasks', async (req, res) => {
