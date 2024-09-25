@@ -132,7 +132,7 @@ app.get('/api/skills/:companyId', async (req, res) => {
   }
 });
 
-// Get all tasks for a specific company, including whether users are assigned
+// Get all tasks for a specific company, including whether users and skills are assigned
 app.get('/api/tasks/:companyID', async (req, res) => {
   const { companyID } = req.params;
 
@@ -147,26 +147,33 @@ app.get('/api/tasks/:companyID', async (req, res) => {
         task_description: true,
         task_type: true,
         created_at: true,
-        assignedUsers: {  // Correctly reference the assignedUsers relation
+        assignedUsers: {
           select: {
             user_id: true,  // Include user_id or any other user fields you need
+          },
+        },
+        taskSkills: {
+          select: {
+            skill_id: true,  // Include skill_id or any other skill fields you need
           },
         },
       },
     });
 
-    // Map tasks and include a flag if users are assigned
-    const tasksWithUserAssignment = tasks.map((task) => ({
+    // Map tasks and include flags if users or skills are assigned
+    const tasksWithAssignments = tasks.map((task) => ({
       ...task,
       hasUsersAssigned: task.assignedUsers.length > 0,  // Check if there are any assigned users
+      hasSkillsAssigned: task.taskSkills.length > 0,    // Check if there are any assigned skills
     }));
 
-    res.status(200).json(tasksWithUserAssignment).end();
+    res.status(200).json(tasksWithAssignments).end();
   } catch (error) {
     console.error('Error fetching tasks for company:', error);
     res.status(500).json({ error: 'Failed to fetch tasks for company.' }).end();
   }
 });
+
 
 // Endpoint to get all skills with a null company_id
 app.get('/api/skills-no-company', async (req, res) => {
@@ -199,7 +206,6 @@ app.post('/api/tasks/:taskId/assign-skills', async (req, res) => {
   }
 
   try {
-    console.log("test");
 
     // Loop through each skill_id and create a new entry in SnipxTaskSkill
     const assignments = await Promise.all(
