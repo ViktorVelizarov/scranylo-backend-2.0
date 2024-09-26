@@ -2,7 +2,7 @@
 const prisma = require("../utils/prisma");
 
 // Function to add a snippet to the database
-const AddSnippet = async ({ snipx_user_id, type,  date,  inputText, green, orange, red, explanations, score, sentiment }) => {
+const AddSnippet = async ({ snipx_user_id, type,  date,  inputText, green, orange, red, explanations, score, sentiment, action }) => {
   try {
 
     const cleanedText = inputText ? inputText.replace(/<\/?[^>]+(>|$)/g, "") : "";
@@ -25,7 +25,8 @@ const AddSnippet = async ({ snipx_user_id, type,  date,  inputText, green, orang
         red: red,
         explanations: explanations,
         score: score.toString(),
-        sentiment: sentiment
+        sentiment: sentiment,
+        action_text : action
       },
     });
     return newSnippet;

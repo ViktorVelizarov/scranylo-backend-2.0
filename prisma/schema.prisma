@@ -66,6 +66,7 @@ model SnipxSnippet {
   sentiment    String?       @db.VarChar(100)
   score        String?       @db.VarChar(100)
   explanations String?       @db.VarChar(1500)
+  action_text       String?       @db.VarChar(1000) 
 
   user         Snipx_Users?  @relation(fields: [user_id], references: [id])
 

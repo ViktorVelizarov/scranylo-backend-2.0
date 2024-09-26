@@ -100,6 +100,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// SKILLS
 // Get All Skills for a Company
 app.get('/api/skills/:companyId', async (req, res) => {
   const { companyId } = req.params;
@@ -132,6 +133,7 @@ app.get('/api/skills/:companyId', async (req, res) => {
   }
 });
 
+// TASKS
 // Get all tasks for a specific company, including whether users and skills are assigned
 app.get('/api/tasks/:companyID', async (req, res) => {
   const { companyID } = req.params;
@@ -174,7 +176,7 @@ app.get('/api/tasks/:companyID', async (req, res) => {
   }
 });
 
-
+//SKILLS
 // Endpoint to get all skills with a null company_id
 app.get('/api/skills-no-company', async (req, res) => {
   try {
@@ -191,6 +193,8 @@ app.get('/api/skills-no-company', async (req, res) => {
   }
 });
 
+
+//TASKS
 // Endpoint to add skills to a task
 app.post('/api/tasks/:taskId/assign-skills', async (req, res) => {
   const { taskId } = req.params;
@@ -228,7 +232,7 @@ app.post('/api/tasks/:taskId/assign-skills', async (req, res) => {
 });
 
 
-
+//TASKS
 // Create a new task
 app.post('/api/tasks', async (req, res) => {
   const { task_name, task_description, task_type, company_id } = req.body;
@@ -254,6 +258,7 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
+//TASKS
 // Delete a task by ID
 app.delete('/api/tasks/:id', async (req, res) => {
   const { id } = req.params;
@@ -282,7 +287,7 @@ app.delete('/api/tasks/:id', async (req, res) => {
 
 
 
-
+// AUTO FUNC
 app.post('/api/sendEmail', async (req, res) => {
   try {
     // Get all users from the Snipx_Users table
@@ -325,7 +330,7 @@ app.post('/api/sendEmail', async (req, res) => {
 });
 
 
-
+// PDP
 //uplaod a PDP to a given user in the snippets user table
 app.post('/api/uploadPDP', async (req, res) => {
   const { userId, PDPText } = req.body; // Destructure userId and PDPText from the request body
@@ -355,6 +360,8 @@ app.post('/api/uploadPDP', async (req, res) => {
   }
 });
 
+
+// PDP
 app.post('/api/analyzePDP', async (req, res) => {
   const { PDPText } = req.body; // Destructure PDPText from the request body
 
@@ -390,6 +397,7 @@ app.post('/api/analyzePDP', async (req, res) => {
   }
 });
 
+// PDP
 app.post('/api/uploadAIPDP', async (req, res) => {
   const { userId, PDPText } = req.body; // Destructure userId and PDPText from the request body
 
@@ -419,7 +427,7 @@ app.post('/api/uploadAIPDP', async (req, res) => {
   }
 });
 
-
+// PDP
 //get the PDP text of a given user from the snippets users table
 app.get('/api/getPDP/:userId', async (req, res) => {
   const { userId } = req.params;
@@ -441,6 +449,7 @@ app.get('/api/getPDP/:userId', async (req, res) => {
   }
 });
 
+// COMPANY
 // Get Company ID for a User
 app.get('/api/users/:userId/company', async (req, res) => {
   const { userId } = req.params;
@@ -464,7 +473,7 @@ app.get('/api/users/:userId/company', async (req, res) => {
 
 
 
-
+// SKILLS
 // Get All Skills for a Company
 app.get('/api/skills/:companyId', async (req, res) => {
   const { companyId } = req.params;
@@ -497,6 +506,8 @@ app.get('/api/skills/:companyId', async (req, res) => {
   }
 });
 
+
+// SKILLS
 // Create a New Skill for a Company
 app.post('/api/skills', async (req, res) => {
   const { skillName, companyId, desc1, desc2, desc3, desc4, desc5 } = req.body;
@@ -523,6 +534,7 @@ app.post('/api/skills', async (req, res) => {
   }
 });
 
+// SKILLS
 // Update a Skill by ID
 app.put('/api/skills/:skillId', async (req, res) => {
   const { skillId } = req.params;
@@ -550,7 +562,7 @@ app.put('/api/skills/:skillId', async (req, res) => {
   }
 });
 
-
+// SKILLS
 // Delete a Skill by ID
 app.delete('/api/skills/:skillId', async (req, res) => {
   const { skillId } = req.params;
@@ -569,7 +581,7 @@ app.delete('/api/skills/:skillId', async (req, res) => {
   }
 });
 
-
+// TASKS
 // Assign multiple users to a task
 app.post('/api/tasks/assign-users', async (req, res) => {
   const { task_id, user_ids } = req.body;
@@ -600,7 +612,7 @@ app.post('/api/tasks/assign-users', async (req, res) => {
 });
 
 
-
+// RATINGS
 // Get Skill Ratings for a User
 app.get('/api/users/:userId/ratings', async (req, res) => {
   const { userId } = req.params;
@@ -626,6 +638,7 @@ app.get('/api/users/:userId/ratings', async (req, res) => {
   }
 });
 
+// RATINGS
 // Create a new Skill Rating for a User
 app.post('/api/users/:userId/ratings', async (req, res) => {
   const { userId } = req.params;
@@ -657,6 +670,8 @@ app.post('/api/users/:userId/ratings', async (req, res) => {
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+
+// PFP
 // Endpoint to upload an image
 app.post('/api/uploadProfilePicture', upload.single('profilePicture'), async (req, res) => {
   const { userId } = req.body;
@@ -690,6 +705,7 @@ app.post('/api/uploadProfilePicture', upload.single('profilePicture'), async (re
   }
 });
 
+// PFP
 // Endpoint to retrieve a profile picture
 app.get('/api/profilePicture/:userId', async (req, res) => {
   const { userId } = req.params;
@@ -719,7 +735,7 @@ app.get('/api/profilePicture/:userId', async (req, res) => {
 
 
 
-
+// USERS
 // Add a new user
 app.post("/api/snipx_users", async (req, res) => {
   const { email, role, managedBy, currentUserID } = req.body;
@@ -757,6 +773,7 @@ app.post("/api/snipx_users", async (req, res) => {
   }
 });
 
+// USERS
 // Find a user by ID
 app.post("/api/snipx_users/:id", async (req, res) => {
   const { id } = req.params;
@@ -771,7 +788,7 @@ app.post("/api/snipx_users/:id", async (req, res) => {
   }
 });
 
-
+// SNIPPETS
 // Endpoint to get all snippets for a given team
 app.post("/api/team_snippets", async (req, res) => {
   try {
@@ -824,7 +841,7 @@ app.post("/api/team_snippets", async (req, res) => {
 });
 
 
-
+// TEAMS
 app.get("/api/teams", async (req, res) => {
   try {
     // Extract userId from the query string and convert it to an integer
@@ -920,7 +937,7 @@ app.get("/api/teams", async (req, res) => {
 
 
 
-
+// TEAMS
 // Create a new team and add users to it
 app.post("/api/teams", async (req, res) => {
   try {
@@ -991,7 +1008,7 @@ app.post("/api/teams", async (req, res) => {
   }
 });
 
-
+// TEAMS
 // Update team details
 app.put("/api/teams/:id", async (req, res) => {
   try {
@@ -1057,7 +1074,7 @@ app.put("/api/teams/:id", async (req, res) => {
 });
 
 
-
+// TEAMS
 // Delete a team
 app.delete("/api/teams/:id", async (req, res) => {
   try {
@@ -1094,7 +1111,7 @@ app.delete("/api/teams/:id", async (req, res) => {
 
 
 
-
+// USERS
 app.post("/api/company_users", async (req, res) => {
   try {
     // Step 1: Extract the user who sent the request
@@ -1141,7 +1158,7 @@ app.post("/api/company_users", async (req, res) => {
 
 const keyFilePath = require("./credentials2.json");
 
-
+// AUTO FUNC
 // Initialize the Google Auth client
 const auth = new google.auth.GoogleAuth({
   credentials: keyFilePath,
@@ -1254,7 +1271,7 @@ async function createOrUpdateGoogleDoc(user, snippets) {
   }
 }
 
-
+// AUTO FUNC
 // API endpoint to create or update Google Docs with snippets
 app.post('/api/update-google-docs', async (req, res) => {
   try {
@@ -1285,7 +1302,7 @@ app.post('/api/update-google-docs', async (req, res) => {
 
 
 
-
+// AUTO FUNC
 // Helper function to create or update a Google Doc for PDP
 async function createOrUpdatePDPDoc(user) {
   const docTitle = `PDP for ${user.email}`;
@@ -1390,7 +1407,7 @@ async function createOrUpdatePDPDoc(user) {
   }
 }
 
-
+// AUTO FUNC
 // API endpoint to create or update Google Docs with PDPs
 app.post('/api/update-google-pdps', async (req, res) => {
   try {
@@ -1441,7 +1458,7 @@ app.get("/api", async (req, res) => {
 
 
 
-
+// USERS
 // Edit a user by ID
 app.put("/api/snipx_users/:id", async (req, res) => {
   const { id } = req.params;
@@ -1455,6 +1472,7 @@ app.put("/api/snipx_users/:id", async (req, res) => {
   }
 });
 
+//USERS 
 // Delete a user by ID
 app.delete("/api/snipx_users/:id", async (req, res) => {
   const { id } = req.params;
@@ -1467,13 +1485,14 @@ app.delete("/api/snipx_users/:id", async (req, res) => {
   }
 });
 
+//USERS 
 // get all snippets from db
 app.get("/api/snipx_snippets",async (req, res) => {
   const allSnippets = await findAllSnippets();
   res.status(200).json(allSnippets).end();
 });
 
-
+// SNIPPETS
 // Get snippets by Company ID
 app.post("/api/company_snippets_ID", async (req, res) => {
   try {
@@ -1519,7 +1538,7 @@ app.post("/api/company_snippets_ID", async (req, res) => {
 });
 
 
-
+// SNIPPETS
 // Get Company Snippets by user Id
 app.post("/api/company_snippets", async (req, res) => {
   try {
@@ -1579,7 +1598,7 @@ app.post("/api/company_snippets", async (req, res) => {
 
 
 
-
+// SNIPPETS
 // Get snippets by user ID
 app.post("/api/snipx_snippets/user", async (req, res) => {
   try {
@@ -1603,6 +1622,7 @@ app.post("/api/snipx_snippets/user", async (req, res) => {
   }
 });
 
+// SNIPPETS
 // Get only daily snippets by user ID
 app.post("/api/snipx_snippets/user_daily", async (req, res) => {
   try {
@@ -1625,7 +1645,7 @@ app.post("/api/snipx_snippets/user_daily", async (req, res) => {
   }
 });
 
-
+// SNIPPETS
 // Edit a snippet by ID
 app.put("/api/snipx_snippets/:id", async (req, res) => {
   const { id } = req.params;
@@ -1650,6 +1670,7 @@ app.put("/api/snipx_snippets/:id", async (req, res) => {
   }
 });
 
+// SNIPPETS
 // Delete a snippet by ID
 app.delete("/api/snipx_snippets/:id", async (req, res) => {
   const { id } = req.params;
@@ -1727,7 +1748,7 @@ app.post("/api/weeklySnippet", async (req, res) => {
 });
 
 
-
+// SNIPPETS
 // New route for OpenAI text analysis of Snippets
 app.post("/api/analyze", async (req, res) => {
   const { text } = req.body;
@@ -1769,7 +1790,7 @@ Always return the result in a JSON format.: "${text}"`;
   }
 });
 
-
+// SNIPPETS
 // New route for OpenAI sentiment analysis of Snippets
 app.post("/api/sentimentAnalysis", async (req, res) => {
   const { text } = req.body;
@@ -1808,14 +1829,15 @@ app.post("/api", async (req, res) => {
   updateCandidate(candidateData);
 });
 
-
-// Handle SnipX sent snippets from users of SnipX
+// SNIPPETS
+// Create snippet in database
 app.post("/api/snipx_snippets", async (req, res) => {
-  const { snipx_user_id, type, inputText, date, green, orange, red, explanations, score, sentiment } = req.body;
+  const { snipx_user_id, type, inputText, action , date, green, orange, red, explanations, score, sentiment } = req.body;
   // Log the received data to the console
   console.log("Received SnipX snippet data:");
   console.log("user_id:", snipx_user_id);
   console.log("type:", type);
+  console.log("action text:", action);
   console.log("date", date)
   console.log("Input Text:", inputText);
   console.log("Green Snippets:", green);
@@ -1838,7 +1860,8 @@ app.post("/api/snipx_snippets", async (req, res) => {
       red,
       explanations,
       score,
-      sentiment
+      sentiment,
+      action,
     });
 
     // Respond with the newly created snippet
