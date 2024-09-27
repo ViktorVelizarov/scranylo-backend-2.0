@@ -232,7 +232,7 @@ app.post('/api/tasks/:taskId/assign-skills', async (req, res) => {
 });
 
 
-//TASKS
+// TASKS
 // Create a new task
 app.post('/api/tasks', async (req, res) => {
   const { task_name, task_description, task_type, company_id } = req.body;
@@ -242,12 +242,21 @@ app.post('/api/tasks', async (req, res) => {
   }
 
   try {
+    // Define ends_at date
+    const endsAt = new Date('2024-09-28T10:00:05Z');
+
+    // Calculate total_hours
+    const createdAt = new Date(); // This will default to the current time when the task is created
+    const totalHours = (endsAt - createdAt) / (1000 * 60 * 60); // Convert milliseconds to hours
+
     const newTask = await prisma.snipxTask.create({
       data: {
         task_name,
         task_description: task_description || null,
         task_type: task_type || null,
         company_id: parseInt(company_id),
+        ends_at: endsAt,          // Set ends_at to the specified date
+        total_hours: totalHours,  // Set total_hours to the calculated value
       },
     });
 
@@ -257,6 +266,7 @@ app.post('/api/tasks', async (req, res) => {
     res.status(500).json({ error: 'Failed to create new task.' }).end();
   }
 });
+
 
 //TASKS
 // Delete a task by ID

@@ -174,7 +174,6 @@ model SnipxRating {
   @@map("snipx_rating")
 }
 
-// New SnipxTask model for tasks
 model SnipxTask {
   id              Int             @id @default(autoincrement())
   task_name       String          @db.VarChar(255)
@@ -182,6 +181,8 @@ model SnipxTask {
   task_type       String?         @db.VarChar(100)
   company_id      Int
   created_at      DateTime        @default(now())
+  ends_at         DateTime?       // New field for task end time
+  total_hours     Float?          // New field for total hours spent on the task
 
   // Relation to Snipx_Company
   company         Snipx_Company   @relation("CompanyToTasks", fields: [company_id], references: [id])
