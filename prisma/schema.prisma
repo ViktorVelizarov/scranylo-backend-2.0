@@ -26,7 +26,6 @@ model Users {
 
 
 
-
 model Snipx_Users {
   id                Int                @id @default(autoincrement())
   email             String?            @db.VarChar(250)
@@ -51,6 +50,12 @@ model Snipx_Users {
   // Relation to SnipxTaskUser for task assignments
   tasks             SnipxTaskUser[]    @relation("UserToTasks")
 
+  // Relation to SnipxNotifications for notifications
+  notifications     SnipxNotifications[] @relation("UserToNotifications")
+
+  // Relation to SnipxUserSkillHours for skill hours
+  skillHours        SnipxUserSkillHours[] @relation("UserToSkillHours")
+
   @@map("snipx_users")
 }
 
@@ -66,7 +71,7 @@ model SnipxSnippet {
   sentiment    String?       @db.VarChar(100)
   score        String?       @db.VarChar(100)
   explanations String?       @db.VarChar(1500)
-  action_text       String?       @db.VarChar(1000) 
+  action_text  String?       @db.VarChar(1000) 
 
   user         Snipx_Users?  @relation(fields: [user_id], references: [id])
 
@@ -148,15 +153,22 @@ model SnipxSkill {
   // Relation to Snipx_Company
   company     Snipx_Company?  @relation("CompanyToSkills", fields: [company_id], references: [id])
 
+  // Relation to SnipxRating for skill ratings
   ratings     SnipxRating[]  @relation("SkillToRatings")
+
+  // Relation to SnipxTaskSkill for task-specific skills and scores
   taskSkills  SnipxTaskSkill[] @relation("TaskToSkills")
+
+  // Relation to SnipxNotifications for notifications
+  notifications SnipxNotifications[] @relation("SkillToNotifications")
+
+  // Relation to SnipxUserSkillHours for skill hours
+  skillHours   SnipxUserSkillHours[] @relation("SkillToSkillHours")
 
   @@unique([company_id, skill_name])
 
   @@map("snipx_skill")
 }
-
-
 
 model SnipxRating {
   id          Int           @id @default(autoincrement())
@@ -196,7 +208,6 @@ model SnipxTask {
   @@map("snipx_task")
 }
 
-// New SnipxTaskUser model for user-task assignments
 model SnipxTaskUser {
   id       Int        @id @default(autoincrement())
   task_id  Int
@@ -213,7 +224,6 @@ model SnipxTaskUser {
   @@map("snipx_task_user")
 }
 
-// New SnipxTaskSkill model for task-skill assignments with scores
 model SnipxTaskSkill {
   id       Int    @id @default(autoincrement())
   task_id  Int
@@ -231,6 +241,35 @@ model SnipxTaskSkill {
   @@map("snipx_task_skill")
 }
 
+model SnipxNotifications {
+  id        Int         @id @default(autoincrement())
+  user_id   Int
+  skill_id  Int
+  approved  Boolean     @default(false)
+
+  // Relation to Snipx_Users
+  user      Snipx_Users  @relation("UserToNotifications", fields: [user_id], references: [id])
+
+  // Relation to SnipxSkill
+  skill     SnipxSkill   @relation("SkillToNotifications", fields: [skill_id], references: [id])
+
+  @@map("snipx_notifications")
+}
+
+model SnipxUserSkillHours {
+  id          Int        @id @default(autoincrement())
+  user_id     Int
+  skill_id    Int
+  total_hours Float      @db.Float
+
+  // Relation to Snipx_Users
+  user        Snipx_Users @relation("UserToSkillHours", fields: [user_id], references: [id])
+
+  // Relation to SnipxSkill
+  skill       SnipxSkill  @relation("SkillToSkillHours", fields: [skill_id], references: [id])
+
+  @@map("snipx_user_skill_hours")
+}
 
 
 
