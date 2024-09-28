@@ -311,16 +311,96 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
+
 app.post('/api/task/execute', async (req, res) => {
   const { taskId } = req.body;
 
-  // Your logic to handle the task execution
-  console.log(`Executing task with ID: ${taskId}`);
+  try {
+    // Fetch the task, including its total_hours
+    const task = await prisma.snipxTask.findUnique({
+      where: { id: taskId },
+      select: {
+        total_hours: true
+      }
+    });
 
-  // For example, you might want to update the task status in the database or perform other actions
+    if (!task) {
+      console.log(`Task with ID: ${taskId} not found.`);
+      return res.status(404).send('Task not found.');
+    }
 
-  res.status(200).send('Task executed.');
+    const { total_hours } = task;
+
+    // Fetch the assigned users for the task
+    const assignedUsers = await prisma.snipxTaskUser.findMany({
+      where: { task_id: taskId },
+      select: { user_id: true }
+    });
+
+    // Fetch the linked skills for the task
+    const taskSkills = await prisma.snipxTaskSkill.findMany({
+      where: { task_id: taskId },
+      select: { skill_id: true }
+    });
+
+    if (assignedUsers.length === 0 || taskSkills.length === 0) {
+      console.log(`No users or skills found for task with ID: ${taskId}`);
+      return res.status(200).send('No users or skills linked to this task.');
+    }
+
+    console.log(`Executing task with ID: ${taskId}`);
+    console.log(`Total hours: ${total_hours}`);
+    console.log(`Assigned Users:`, assignedUsers);
+    console.log(`Task Skills:`, taskSkills);
+
+    // Loop through each user and skill combination
+    for (const userAssignment of assignedUsers) {
+      for (const skillAssignment of taskSkills) {
+        const existingRecord = await prisma.snipxUserSkillHours.findUnique({
+          where: {
+            user_id_skill_id: {
+              user_id: userAssignment.user_id,
+              skill_id: skillAssignment.skill_id
+            }
+          }
+        });
+
+        if (existingRecord) {
+          // Update the existing record by adding the total_hours to the current hours
+          console.log(`Updating hours for User ID: ${userAssignment.user_id}, Skill ID: ${skillAssignment.skill_id}`);
+          await prisma.snipxUserSkillHours.update({
+            where: {
+              user_id_skill_id: {
+                user_id: userAssignment.user_id,
+                skill_id: skillAssignment.skill_id
+              }
+            },
+            data: {
+              hours: existingRecord.hours + Math.floor(total_hours)
+            }
+          });
+        } else {
+          // Create a new record if one doesn't exist
+          console.log(`Creating new hours record for User ID: ${userAssignment.user_id}, Skill ID: ${skillAssignment.skill_id}`);
+          await prisma.snipxUserSkillHours.create({
+            data: {
+              user_id: userAssignment.user_id,
+              skill_id: skillAssignment.skill_id,
+              hours: Math.floor(total_hours)
+            }
+          });
+        }
+      }
+    }
+
+    res.status(200).send('Task executed successfully.');
+  } catch (error) {
+    console.error(`Error executing task with ID: ${taskId}`, error);
+    res.status(500).send('Internal Server Error.');
+  }
 });
+
+
 
 
 

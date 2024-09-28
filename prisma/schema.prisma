@@ -260,13 +260,15 @@ model SnipxUserSkillHours {
   id          Int        @id @default(autoincrement())
   user_id     Int
   skill_id    Int
-  total_hours Float      @db.Float
+  hours     Int
 
   // Relation to Snipx_Users
   user        Snipx_Users @relation("UserToSkillHours", fields: [user_id], references: [id])
 
   // Relation to SnipxSkill
   skill       SnipxSkill  @relation("SkillToSkillHours", fields: [skill_id], references: [id])
+
+  @@unique([user_id, skill_id])
 
   @@map("snipx_user_skill_hours")
 }
