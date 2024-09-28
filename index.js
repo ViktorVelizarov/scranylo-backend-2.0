@@ -10,14 +10,14 @@ const prisma = require("./utils/prisma");
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-
-
-
 const { google } = require("googleapis");
-
 const { getAuth } = require("firebase-admin/auth");
 const { getLinks, updateCandidate } = require("./table.js");
 const { getQAPath, qaUpdate } = require("./table-qa");
+
+const { v2beta3 } = require('@google-cloud/tasks');
+const { CloudTasksClient } = require('@google-cloud/tasks');
+
 const {
   addNewUser,
   updateUserById,
@@ -82,14 +82,11 @@ const SentimentrAnalysisFormat = z.object({
 });
 
 const app = express();
-
 app.use(cors());
 
 // Increase the limit for the JSON body parser
 app.use(express.json({ limit: '10mb' }));  // Set limit to 10MB
 app.use(bodyParser.urlencoded({ extended: false, limit: '10mb' }));
-
-
 
 // Create a reusable transporter object using the default SMTP transport
 const transporter = nodemailer.createTransport({
@@ -99,6 +96,33 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,  // Gmail password or App Password from .env file
   },
 });
+
+const upload = multer({ storage: multer.memoryStorage() });
+
+const keyFilePath = require("./credentials2.json");  //this is the whole file as an object
+const keyFilePath2 = './credentials3.json';   //this is jsut the location of the file
+
+// AUTO FUNC
+// Initialize the Google Auth client
+const auth = new google.auth.GoogleAuth({
+  credentials: keyFilePath,
+  scopes: ['https://www.googleapis.com/auth/documents', 'https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/cloud-platform'],
+});
+// Create a Cloud Tasks Client with credentials
+const tasksClient = new CloudTasksClient({
+  keyFilename: keyFilePath2, // Use the keyFile option for Cloud Tasks
+});
+
+const docs = google.docs({ version: 'v1', auth });
+const drive = google.drive({ version: 'v3', auth });
+
+
+// inicialize app to use Firebase services
+const serviceAccount = require("./firebaseAccountKey.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
 
 // SKILLS
 // Get All Skills for a Company
@@ -242,12 +266,9 @@ app.post('/api/tasks', async (req, res) => {
   }
 
   try {
-    // Define ends_at date
-    const endsAt = new Date('2024-09-28T10:00:05Z');
-
-    // Calculate total_hours
-    const createdAt = new Date(); // This will default to the current time when the task is created
-    const totalHours = (endsAt - createdAt) / (1000 * 60 * 60); // Convert milliseconds to hours
+    // Set the ends_at date
+    const endsAt = new Date('2024-09-29T10:00:05Z'); // Set your ends_at datetime here
+    const totalHours = (endsAt - new Date()) / (1000 * 60 * 60); // Calculate hours between now and ends_at
 
     const newTask = await prisma.snipxTask.create({
       data: {
@@ -255,10 +276,33 @@ app.post('/api/tasks', async (req, res) => {
         task_description: task_description || null,
         task_type: task_type || null,
         company_id: parseInt(company_id),
-        ends_at: endsAt,          // Set ends_at to the specified date
-        total_hours: totalHours,  // Set total_hours to the calculated value
+        ends_at: endsAt,
+        total_hours: totalHours,
       },
     });
+
+    // Create the Cloud Task to trigger at ends_at
+    const project = 'extension-360407'; // Replace with your project ID
+    const queue = 'queue1'; // Replace with your task queue name
+    const location = 'europe-central2'; // e.g., 'us-central1'
+    const url = 'https://extension-360407.lm.r.appspot.com/api/task/execute'; // Your API endpoint
+
+    const payload = JSON.stringify({ taskId: newTask.id });
+
+    const task = {
+      httpRequest: {
+        httpMethod: 'POST',
+        url,
+        headers: { 'Content-Type': 'application/json' },
+        body: Buffer.from(payload).toString('base64'),
+      },
+      scheduleTime: {
+        seconds: Math.floor(endsAt.getTime() / 1000), // Schedule the task for ends_at time
+      },
+    };
+
+    const parent = tasksClient.queuePath(project, location, queue);
+    await tasksClient.createTask({ parent, task });
 
     res.status(201).json(newTask).end();
   } catch (error) {
@@ -266,6 +310,18 @@ app.post('/api/tasks', async (req, res) => {
     res.status(500).json({ error: 'Failed to create new task.' }).end();
   }
 });
+
+app.post('/api/task/execute', async (req, res) => {
+  const { taskId } = req.body;
+
+  // Your logic to handle the task execution
+  console.log(`Executing task with ID: ${taskId}`);
+
+  // For example, you might want to update the task status in the database or perform other actions
+
+  res.status(200).send('Task executed.');
+});
+
 
 
 //TASKS
@@ -673,12 +729,6 @@ app.post('/api/users/:userId/ratings', async (req, res) => {
     res.status(500).json({ error: "Failed to create rating." }).end();
   }
 });
-
-
-
-
-
-const upload = multer({ storage: multer.memoryStorage() });
 
 
 // PFP
@@ -1166,19 +1216,6 @@ app.post("/api/company_users", async (req, res) => {
   }
 });
 
-const keyFilePath = require("./credentials2.json");
-
-// AUTO FUNC
-// Initialize the Google Auth client
-const auth = new google.auth.GoogleAuth({
-  credentials: keyFilePath,
-  scopes: ['https://www.googleapis.com/auth/documents', 'https://www.googleapis.com/auth/drive'],
-});
-
-
-const docs = google.docs({ version: 'v1', auth });
-const drive = google.drive({ version: 'v3', auth });
-
 
 // Helper function to create or update a Google Doc
 async function createOrUpdateGoogleDoc(user, snippets) {
@@ -1443,15 +1480,6 @@ app.post('/api/update-google-pdps', async (req, res) => {
     res.status(500).send('Internal Server Error');
   }
 });
-
-
-
-// inicialize app to use Firebase services
-const serviceAccount = require("./firebaseAccountKey.json");
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
-
 
 
 // Uses sourcing extension. Get link to the next/previous candidate in the spreadsheet, rules, stats and all skills for the sourcer
