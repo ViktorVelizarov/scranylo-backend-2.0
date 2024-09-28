@@ -365,9 +365,12 @@ app.post('/api/task/execute', async (req, res) => {
           }
         });
 
+        let newHours;
+
         if (existingRecord) {
           // Update the existing record by adding the total_hours to the current hours
           console.log(`Updating hours for User ID: ${userAssignment.user_id}, Skill ID: ${skillAssignment.skill_id}`);
+          newHours = existingRecord.hours + Math.floor(total_hours);
           await prisma.snipxUserSkillHours.update({
             where: {
               user_id_skill_id: {
@@ -376,19 +379,46 @@ app.post('/api/task/execute', async (req, res) => {
               }
             },
             data: {
-              hours: existingRecord.hours + Math.floor(total_hours)
+              hours: newHours
             }
           });
         } else {
           // Create a new record if one doesn't exist
           console.log(`Creating new hours record for User ID: ${userAssignment.user_id}, Skill ID: ${skillAssignment.skill_id}`);
+          newHours = Math.floor(total_hours);
           await prisma.snipxUserSkillHours.create({
             data: {
               user_id: userAssignment.user_id,
               skill_id: skillAssignment.skill_id,
-              hours: Math.floor(total_hours)
+              hours: newHours
             }
           });
+        }
+
+        // Check if the hours hit the thresholds (10, 50, 100) for the first time
+        const thresholds = [10, 50, 100];
+        for (const threshold of thresholds) {
+          if (newHours >= threshold) {
+            const existingNotification = await prisma.snipxNotifications.findFirst({
+              where: {
+                user_id: userAssignment.user_id,
+                skill_id: skillAssignment.skill_id,
+              }
+            });
+
+            // Only create a notification if one doesn't already exist for this threshold
+            if (!existingNotification) {
+              console.log(`Creating notification for User ID: ${userAssignment.user_id}, Skill ID: ${skillAssignment.skill_id} at ${threshold} hours`);
+              await prisma.snipxNotifications.create({
+                data: {
+                  user_id: userAssignment.user_id,
+                  skill_id: skillAssignment.skill_id,
+                  approved: false,
+                }
+              });
+              break; // Exit the loop after creating the notification for the first threshold met
+            }
+          }
         }
       }
     }
@@ -399,6 +429,8 @@ app.post('/api/task/execute', async (req, res) => {
     res.status(500).send('Internal Server Error.');
   }
 });
+
+
 
 
 
