@@ -497,7 +497,18 @@ app.delete('/api/notification/:id', async (req, res) => {
   }
 });
 
-
+// NOTIFICATIONS
+// Get all notifications
+app.get('/api/notifications', async (req, res) => {
+  try {
+    const notifications = await prisma.snipxNotifications.findMany();
+    console.log(`Retrieved ${notifications.length} notifications.`);
+    res.status(200).json(notifications);
+  } catch (error) {
+    console.error('Error retrieving notifications:', error);
+    res.status(500).send('Internal Server Error.');
+  }
+});
 
 
 
