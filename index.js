@@ -510,6 +510,18 @@ app.get('/api/notifications', async (req, res) => {
   }
 });
 
+// HOURS
+// Get all user skill hours
+app.get('/api/user-skill-hours', async (req, res) => {
+  try {
+    const userSkillHours = await prisma.snipxUserSkillHours.findMany();
+    console.log(`Retrieved ${userSkillHours.length} user skill hour records.`);
+    res.status(200).json(userSkillHours);
+  } catch (error) {
+    console.error('Error retrieving user skill hours:', error);
+    res.status(500).send('Internal Server Error.');
+  }
+});
 
 
 //TASKS
