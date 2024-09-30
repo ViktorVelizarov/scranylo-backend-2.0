@@ -498,17 +498,32 @@ app.delete('/api/notification/:id', async (req, res) => {
 });
 
 // NOTIFICATIONS
-// Get all notifications
+// Get all notifications with user emails and skill names
 app.get('/api/notifications', async (req, res) => {
   try {
-    const notifications = await prisma.snipxNotifications.findMany();
-    console.log(`Retrieved ${notifications.length} notifications.`);
+    const notifications = await prisma.snipxNotifications.findMany({
+      include: {
+        user: {
+          select: {
+            email: true,  // Include the user's email
+          },
+        },
+        skill: {
+          select: {
+            skill_name: true,  // Include the skill name
+          },
+        },
+      },
+    });
+
+    console.log(`Retrieved ${notifications.length} notifications with user emails and skill names.`);
     res.status(200).json(notifications);
   } catch (error) {
     console.error('Error retrieving notifications:', error);
     res.status(500).send('Internal Server Error.');
   }
 });
+
 
 // HOURS
 // Get all user skill hours with user emails and skill names
