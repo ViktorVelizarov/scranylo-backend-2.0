@@ -511,17 +511,32 @@ app.get('/api/notifications', async (req, res) => {
 });
 
 // HOURS
-// Get all user skill hours
+// Get all user skill hours with user emails and skill names
 app.get('/api/user-skill-hours', async (req, res) => {
   try {
-    const userSkillHours = await prisma.snipxUserSkillHours.findMany();
-    console.log(`Retrieved ${userSkillHours.length} user skill hour records.`);
+    const userSkillHours = await prisma.snipxUserSkillHours.findMany({
+      include: {
+        user: {
+          select: {
+            email: true,  // Include the user's email
+          },
+        },
+        skill: {
+          select: {
+            skill_name: true,  // Include the skill name
+          },
+        },
+      },
+    });
+
+    console.log(`Retrieved ${userSkillHours.length} user skill hour records with emails and skill names.`);
     res.status(200).json(userSkillHours);
   } catch (error) {
     console.error('Error retrieving user skill hours:', error);
     res.status(500).send('Internal Server Error.');
   }
 });
+
 
 
 //TASKS
