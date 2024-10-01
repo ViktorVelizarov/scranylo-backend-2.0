@@ -259,16 +259,24 @@ app.post('/api/tasks/:taskId/assign-skills', async (req, res) => {
 // TASKS
 // Create a new task
 app.post('/api/tasks', async (req, res) => {
-  const { task_name, task_description, task_type, company_id } = req.body;
+  const { task_name, task_description, task_type, company_id, endsAt } = req.body;
+  console.log("endsAt", endsAt);
 
   if (!task_name || !company_id) {
     return res.status(400).json({ error: 'Task name and company ID are required.' }).end();
   }
 
   try {
-    // Set the ends_at date
-    const endsAt = new Date('2024-09-29T10:00:05Z'); // Set your ends_at datetime here
-    const totalHours = (endsAt - new Date()) / (1000 * 60 * 60); // Calculate hours between now and ends_at
+    // Convert endsAt string to Date object
+    const endsAtDate = new Date(endsAt);
+
+    // Ensure endsAt is a valid date
+    if (isNaN(endsAtDate)) {
+      return res.status(400).json({ error: 'Invalid endsAt date.' }).end();
+    }
+
+    // Set the total hours
+    const totalHours = (endsAtDate - new Date()) / (1000 * 60 * 60); // Calculate hours between now and ends_at
 
     const newTask = await prisma.snipxTask.create({
       data: {
@@ -276,12 +284,12 @@ app.post('/api/tasks', async (req, res) => {
         task_description: task_description || null,
         task_type: task_type || null,
         company_id: parseInt(company_id),
-        ends_at: endsAt,
+        ends_at: endsAtDate,
         total_hours: totalHours,
       },
     });
 
-    // Create the Cloud Task to trigger at ends_at
+    // Create the Cloud Task to trigger at endsAt time
     const project = 'extension-360407'; // Replace with your project ID
     const queue = 'queue1'; // Replace with your task queue name
     const location = 'europe-central2'; // e.g., 'us-central1'
@@ -297,7 +305,7 @@ app.post('/api/tasks', async (req, res) => {
         body: Buffer.from(payload).toString('base64'),
       },
       scheduleTime: {
-        seconds: Math.floor(endsAt.getTime() / 1000), // Schedule the task for ends_at time
+        seconds: Math.floor(endsAtDate.getTime() / 1000), // Schedule the task for ends_at time
       },
     };
 
@@ -310,6 +318,7 @@ app.post('/api/tasks', async (req, res) => {
     res.status(500).json({ error: 'Failed to create new task.' }).end();
   }
 });
+
 
 
 app.post('/api/task/execute', async (req, res) => {

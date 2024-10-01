@@ -110,6 +110,8 @@ coverage
 
 credentials.json
 credentials2.json
+credentials3.json
+.env
 credentials.temp.json
 token.json
 firebaseAccountKey.json
