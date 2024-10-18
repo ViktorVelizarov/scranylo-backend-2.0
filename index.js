@@ -35,12 +35,14 @@ const {
   addNewSnipxUser,
 } = require("./database/snipx_user.js");
 const {
-  findAllSnippets,
   AddSnippet,
+  findSnippetsByCompanyId,
+  findSnippetsByUserCompanyId,
   findSnippetsByUserId,
+  findDailySnippetsByUserId,
   updateSnippetById,
   deleteSnippetById,
-  findDailySnippetsByUserId,
+  findTeamSnippets,
   
 } = require("./database/snipx_snippets.js");
 const {
@@ -101,6 +103,139 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const keyFilePath = require("./credentials2.json");  //this is the whole file as an object
 const keyFilePath2 = './credentials3.json';   //this is jsut the location of the file
+
+
+// SNIPPETS
+// Get snippets by Company ID
+app.post("/api/company_snippets_ID", async (req, res) => {
+  try {
+    const { companyId } = req.body;
+    if (!companyId) return res.status(400).json({ error: "Company ID is required" });
+
+    const companySnippets = await findSnippetsByCompanyId(companyId);
+    if (companySnippets.length === 0) return res.status(404).json({ message: "No users found for this company" });
+
+    res.status(200).json(companySnippets);
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// SNIPPETS
+// Create snippet in database
+app.post("/api/snipx_snippets", async (req, res) => {
+  const { snipx_user_id, type, inputText, action, date, green, orange, red, explanations, score, sentiment } = req.body;
+  try {
+    const newSnippet = await AddSnippet({
+      snipx_user_id,
+      type,
+      date,
+      inputText,
+      green,
+      orange,
+      red,
+      explanations,
+      score,
+      sentiment,
+      action,
+    });
+    res.status(201).json({ message: "Snippet data received and stored successfully", snippet: newSnippet });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to store snippet data" });
+  }
+});
+
+// SNIPPETS
+// Get snippets by user ID
+app.post("/api/snipx_snippets/user", async (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: "User ID is required" });
+
+    const userSnippets = await findSnippetsByUserId(id);
+    if (userSnippets.length === 0) return res.status(404).json({ message: "No snippets found for this user" });
+
+    res.status(200).json(userSnippets);
+  } catch (error) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// SNIPPETS
+// Get daily snippets by user ID
+app.post("/api/snipx_snippets/user_daily", async (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: "User ID is required" });
+
+    const dailySnippets = await findDailySnippetsByUserId(id);
+    if (dailySnippets.length === 0) return res.status(404).json({ message: "No daily snippets found for this user" });
+
+    res.status(200).json(dailySnippets);
+  } catch (error) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// SNIPPETS
+// Edit a snippet by ID
+app.put("/api/snipx_snippets/:id", async (req, res) => {
+  const { id } = req.params;
+  const { user_id, text, green, orange, red, explanations, score, sentiment } = req.body;
+  try {
+    const updatedSnippet = await updateSnippetById(id, { user_id, text, green, orange, red, explanations, score, sentiment });
+    res.status(200).json(updatedSnippet);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update snippet" });
+  }
+});
+
+// SNIPPETS
+// Delete a snippet by ID
+app.delete("/api/snipx_snippets/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    await deleteSnippetById(id);
+    res.status(204).json();
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete snippet" });
+  }
+});
+
+// SNIPPETS
+// Get team snippets by Team ID
+app.post("/api/team_snippets", async (req, res) => {
+  try {
+    const { teamId } = req.body;
+    if (!teamId) return res.status(400).json({ error: "Team ID is required" });
+
+    const teamSnippets = await findTeamSnippets(teamId);
+    if (teamSnippets.length === 0) return res.status(404).json({ message: "No snippets found for this team" });
+
+    res.status(200).json(teamSnippets);
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// SNIPPETS
+// Get snippets by Company ID
+app.post("/api/company_snippets", async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: "User ID is required" });
+
+    const companySnippets = await findSnippetsByUserCompanyId(userId);
+    if (companySnippets.length === 0) return res.status(404).json({ message: "No snippets found for this company" });
+
+    res.status(200).json(companySnippets);
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+
 
 // Users API
 
@@ -1136,57 +1271,7 @@ app.get('/api/profilePicture/:userId', async (req, res) => {
 
 
 
-// SNIPPETS
-// Endpoint to get all snippets for a given team
-app.post("/api/team_snippets", async (req, res) => {
-  try {
-    // Extract teamId from the query string and convert it to an integer
-    const { teamIdReq } = req.body;
-    const teamId = parseInt(teamIdReq, 10);
 
-    console.log("Received request to fetch snippets for team ID:", teamId);
-
-    // Check if teamId is valid
-    if (isNaN(teamId)) {
-      console.log("Team ID is missing or is not a valid number.");
-      return res.status(400).json({ message: "Team ID is required and must be a number" }).end();
-    }
-
-    // Step 1: Find all users in the specified team
-    const teamMembers = await prisma.snipxUserTeam.findMany({
-      where: { team_id: teamId },
-      include: {
-        user: true // Include user details
-      }
-    });
-
-    if (teamMembers.length === 0) {
-      console.log("No users found in team ID:", teamId);
-      return res.status(404).json({ message: "No users found in the specified team" }).end();
-    }
-
-    // Extract user IDs from the team members
-    const userIds = teamMembers.map(member => member.user_id);
-
-    console.log(`User IDs in team ID ${teamId}:`, userIds);
-
-    // Step 2: Fetch all snippets for these users
-    const snippets = await prisma.snipxSnippet.findMany({
-      where: {
-        user_id: { in: userIds }
-      },
-      orderBy: { date: 'desc' }
-    });
-
-    console.log(`Snippets found for team ID ${teamId}:`, snippets);
-
-    // Return the snippets
-    res.status(200).json(snippets).end();
-  } catch (error) {
-    console.error("Error fetching snippets for team:", error);
-    res.status(500).json({ message: "Internal server error" }).end();
-  }
-});
 
 
 // TEAMS
@@ -1743,196 +1828,6 @@ app.get("/api", async (req, res) => {
 });
 
 
-// SNIPPETS
-// Get snippets by Company ID
-app.post("/api/company_snippets_ID", async (req, res) => {
-  try {
-    // Step 1: Extract the company ID from the request body
-    const { companyId } = req.body;
-
-    if (!companyId) {
-      return res.status(400).json({ error: "Company ID is required" }).end();
-    }
-
-    // Step 2: Find all users associated with the provided company ID
-    const companyUsers = await prisma.snipxUserCompany.findMany({
-      where: {
-        company_id: companyId,
-      },
-      select: { user_id: true },
-    });
-
-    if (companyUsers.length === 0) {
-      return res.status(404).json({ message: "No users found for this company" }).end();
-    }
-
-    const userIds = companyUsers.map((relation) => relation.user_id);
-    console.log("userIds in company:", userIds);
-
-    // Step 3: Find all snippets associated with the users in that company
-    const companySnippets = await prisma.snipxSnippet.findMany({
-      where: {
-        user_id: {
-          in: userIds,
-        },
-      },
-    });
-
-    console.log("companySnippets:", companySnippets);
-
-    // Step 4: Return the snippets in the response
-    res.status(200).json(companySnippets).end();
-  } catch (error) {
-    console.error("Error fetching company snippets:", error);
-    res.status(500).json({ message: "Internal server error" }).end();
-  }
-});
-
-
-// SNIPPETS
-// Get Company Snippets by user Id
-app.post("/api/company_snippets", async (req, res) => {
-  try {
-    // Step 1: Extract the user ID from the request body
-    const { id } = req.body;
-    console.log("id:", id);
-
-    // Step 2: Find the user's company through SnipxUserCompany
-    const userCompanyRelation = await prisma.snipxUserCompany.findUnique({
-      where: { user_id: id },
-      include: { company: true },
-    });
-
-    console.log("userCompanyRelation:", userCompanyRelation);
-
-    if (!userCompanyRelation || !userCompanyRelation.company) {
-      return res.status(404).json({ message: "User or associated company not found" });
-    }
-
-    const companyId = userCompanyRelation.company_id;
-    console.log("companyId:", companyId);
-
-    // Step 3: Find all users associated with the same company
-    const companyUsers = await prisma.snipxUserCompany.findMany({
-      where: {
-        company_id: companyId,
-        user: {           // This condition relates to the associated Snipx_Users model
-          managedBy: id    // Check if the managedBy field is equal to 1
-        }
-      },
-      select: { user_id: true },
-    });
-
-    const userIds = companyUsers.map((relation) => relation.user_id);
-    console.log("userIds in company:", userIds);
-
-    // Step 4: Find all snippets associated with the users in that company
-    const companySnippets = await prisma.snipxSnippet.findMany({
-      where: {
-        user_id: {
-          in: userIds,
-        },
-      },
-    });
-
-    console.log("companySnippets:", companySnippets);
-
-    // Step 5: Return the snippets in the response
-    res.status(200).json(companySnippets).end();
-  } catch (error) {
-    console.error("Error fetching company snippets:", error);
-    res.status(500).json({ message: "Internal server error" }).end();
-  }
-});
-
-
-
-
-
-// SNIPPETS
-// Get snippets by user ID
-app.post("/api/snipx_snippets/user", async (req, res) => {
-  try {
-    const { id } = req.body;
-
-    if (!id) {
-      return res.status(400).json({ error: "User ID is required" }).end();
-    }
-
-    const userSnippets = await findSnippetsByUserId(id);
-
-
-    if (userSnippets.length === 0) {
-      return res.status(404).json({ message: "No snippets found for this user" }).end();
-    }
-
-    res.status(200).json(userSnippets).end();
-  } catch (error) {
-    console.error("Error fetching user snippets:", error);
-    res.status(500).json({ error: "Internal Server Error" }).end();
-  }
-});
-
-// SNIPPETS
-// Get only daily snippets by user ID
-app.post("/api/snipx_snippets/user_daily", async (req, res) => {
-  try {
-    const { id } = req.body;
-
-    if (!id) {
-      return res.status(400).json({ error: "User ID is required" }).end();
-    }
-
-    const userSnippets = await findDailySnippetsByUserId(id);
-
-    if (userSnippets.length === 0) {
-      return res.status(404).json({ message: "No snippets found for this user" }).end();
-    }
-
-    res.status(200).json(userSnippets).end();
-  } catch (error) {
-    console.error("Error fetching user snippets:", error);
-    res.status(500).json({ error: "Internal Server Error" }).end();
-  }
-});
-
-// SNIPPETS
-// Edit a snippet by ID
-app.put("/api/snipx_snippets/:id", async (req, res) => {
-  const { id } = req.params;
-  const { user_id, text, green, orange, red, explanations, score, sentiment } = req.body;
-
-  try {
-    const updatedSnippet = await updateSnippetById(id, {
-      user_id,
-      text,
-      green,
-      orange,
-      red,
-      explanations,
-      score,
-      sentiment,
-    });
-    console.log("updatedSnippet")
-    console.log(updatedSnippet)
-    res.status(200).json(updatedSnippet).end();
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update snippet" }).end();
-  }
-});
-
-// SNIPPETS
-// Delete a snippet by ID
-app.delete("/api/snipx_snippets/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    await deleteSnippetById(id);
-    res.status(204).end();
-  } catch (error) {
-    res.status(500).json({ error: "Failed to delete snippet" }).end();
-  }
-});
 
 app.post("/api/weeklySnippet", async (req, res) => {
   const { snippetIds } = req.body;
@@ -1999,7 +1894,7 @@ app.post("/api/weeklySnippet", async (req, res) => {
 });
 
 
-// SNIPPETS
+// OPENAI API
 // New route for OpenAI text analysis of Snippets
 app.post("/api/analyze", async (req, res) => {
   const { text } = req.body;
@@ -2041,7 +1936,7 @@ Always return the result in a JSON format.: "${text}"`;
   }
 });
 
-// SNIPPETS
+// OPENAI API
 // New route for OpenAI sentiment analysis of Snippets
 app.post("/api/sentimentAnalysis", async (req, res) => {
   const { text } = req.body;
@@ -2080,51 +1975,6 @@ app.post("/api", async (req, res) => {
   updateCandidate(candidateData);
 });
 
-// SNIPPETS
-// Create snippet in database
-app.post("/api/snipx_snippets", async (req, res) => {
-  const { snipx_user_id, type, inputText, action , date, green, orange, red, explanations, score, sentiment } = req.body;
-  // Log the received data to the console
-  console.log("Received SnipX snippet data:");
-  console.log("user_id:", snipx_user_id);
-  console.log("type:", type);
-  console.log("action text:", action);
-  console.log("date", date)
-  console.log("Input Text:", inputText);
-  console.log("Green Snippets:", green);
-  console.log("Orange Snippets:", orange);
-  console.log("Red Snippets:", red);
-
-  console.log("explanations:", explanations);
-  console.log("score:", score);
-  console.log("sentiment:", sentiment);
-
-  try {
-    // Add the snippet to the database
-    const newSnippet = await AddSnippet({
-      snipx_user_id,
-      type,
-      date,
-      inputText,
-      green,
-      orange,
-      red,
-      explanations,
-      score,
-      sentiment,
-      action,
-    });
-
-    // Respond with the newly created snippet
-    res.status(201).json({
-      message: "Snippet data received and stored successfully",
-      snippet: newSnippet,
-    });
-  } catch (error) {
-    console.error("Error storing snippet:", error);
-    res.status(500).json({ error: "Failed to store snippet data" });
-  }
-});
 
 
 //  Uses relevancy web. Authenticate user on login
