@@ -256,6 +256,8 @@ model SnipxNotifications {
   @@map("snipx_notifications")
 }
 
+
+
 model SnipxUserSkillHours {
   id          Int        @id @default(autoincrement())
   user_id     Int

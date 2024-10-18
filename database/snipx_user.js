@@ -1,94 +1,99 @@
-const { MultiFactorInfo } = require("firebase-admin/auth");
+// snipx_user.js
 const prisma = require("../utils/prisma");
 
-// get all users in the ext_users table, function used by relevancy web on the /users page
+/**
+ * Retrieve all users from the Snipx_Users table, ordered by ID in descending order.
+ */
 const findSnipxAllUsers = async () => {
-    const allUsers = await prisma.snipx_Users.findMany({orderBy: {id: "desc"}});
-    console.log("snipx_users:")
-    console.log(allUsers)
+    const allUsers = await prisma.snipx_Users.findMany({ orderBy: { id: "desc" } });
+    console.log("snipx_users:", allUsers);
     return allUsers;
-  }
+};
 
-// check if user exists in the database and if the user has "admin" role, function is used by QA extension and relevancy web for authentication
+/**
+ * Find an admin user by their email. Checks if the user has the role "admin".
+ */
 const findSnipxAdminByEmail = async (adminEmail) => {
     const user = await prisma.snipx_Users.findFirst({
-      where: {
-        email: adminEmail,
-        role: "admin"
-      }
+        where: {
+            email: adminEmail,
+            role: "admin"
+        }
     });
     return user;
-  }
+};
 
-  const findSnipxUserByEmail = async (email) => {
+/**
+ * Find a user by their email.
+ */
+const findSnipxUserByEmail = async (email) => {
     const user = await prisma.snipx_Users.findFirst({
-      where: {
-        email: email,
-      }
+        where: { email }
     });
     return user;
-  }
+};
 
-  const findSnipxUserByID = async (id) => {
-    console.log("id in findById:", id)
-    console.log("type", typeof id.toInt())
+/**
+ * Find a user by their ID.
+ */
+const findSnipxUserByID = async (id) => {
+    console.log("id in findById:", id);
     const user = await prisma.snipx_Users.findFirst({
-      where: {
-        id: id.toInt(),
-      }
+        where: { id: parseInt(id) }
     });
-    console.log("found user", user)
+    console.log("found user", user);
     return user;
-  }
+};
 
-  // find SnipX managers
+/**
+ * Retrieve all users with the "manager" role.
+ */
 const findSnipxManagers = async () => {
-  const managers = await prisma.snipx_Users.findMany({
-    where: {
-      role: "manager"
-    }
-  });
-  return managers;
-}
+    const managers = await prisma.snipx_Users.findMany({
+        where: { role: "manager" }
+    });
+    return managers;
+};
 
-  // Update a user by ID
-  const updateSnipxUserById = async (id, data) => {
-    console.log("data in edit:", data)
+/**
+ * Update a user by their ID.
+ */
+const updateSnipxUserById = async (id, data) => {
+    console.log("data in edit:", data);
     const updatedUser = await prisma.snipx_Users.update({
-      where: { id: parseInt(id) },
-      data,
+        where: { id: parseInt(id) },
+        data
     });
     return updatedUser;
-  };
-  
-  // Set a user's role to "deleted" by ID
+};
+
+/**
+ * Set a user's role to "deleted" by ID.
+ */
 const deleteSnipxUserById = async (id) => {
-  console.log("userId in delete:", id);
-  await prisma.snipx_Users.update({
-    where: { id: parseInt(id) },
-    data: { role: "deleted" },
-  });
+    console.log("userId in delete:", id);
+    await prisma.snipx_Users.update({
+        where: { id: parseInt(id) },
+        data: { role: "deleted" }
+    });
 };
 
-  // Create a new user
+/**
+ * Create a new user.
+ */
 const addNewSnipxUser = async (data) => {
-  console.log("add new user data:", data)
-  const newUser = await prisma.snipx_Users.create({
-    data,
-  });
-  return newUser;
+    console.log("add new user data:", data);
+    const newUser = await prisma.snipx_Users.create({ data });
+    return newUser;
 };
 
-  
-  module.exports = {
+module.exports = {
     findSnipxAllUsers,
     findSnipxAdminByEmail,
     updateSnipxUserById,
     deleteSnipxUserById,
-    addNewSnipxUser, 
+    addNewSnipxUser,
     findSnipxManagers,
     findSnipxUserByEmail,
-    findSnipxUserByID,
-  };
-  
-  
+    findSnipxUserByID
+};

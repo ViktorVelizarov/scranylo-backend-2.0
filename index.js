@@ -102,6 +102,154 @@ const upload = multer({ storage: multer.memoryStorage() });
 const keyFilePath = require("./credentials2.json");  //this is the whole file as an object
 const keyFilePath2 = './credentials3.json';   //this is jsut the location of the file
 
+// Users API
+
+/**
+ * Update a user by ID.
+ */
+app.put("/api/snipx_users/:id", async (req, res) => {
+  const { id } = req.params;
+  const { email, role, managedBy } = req.body;
+  try {
+      const updatedUser = await updateSnipxUserById(id, { email, role, managedBy });
+      res.status(200).json(updatedUser).end();
+  } catch (error) {
+      res.status(500).json({ error: "Failed to update user" }).end();
+  }
+});
+
+/**
+* Delete a user by ID.
+*/
+app.delete("/api/snipx_users/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+      await deleteSnipxUserById(id);
+      res.status(204).end();
+  } catch (error) {
+      res.status(500).json({ error: "Failed to delete user" }).end();
+  }
+});
+
+/**
+* Add a new user.
+*/
+app.post("/api/snipx_users", async (req, res) => {
+  const { email, role, managedBy, currentUserID } = req.body;
+  try {
+      // Find the company of the currentUserID
+      const currentUserCompany = await prisma.snipxUserCompany.findUnique({
+          where: { user_id: currentUserID }
+      });
+
+      if (!currentUserCompany) {
+          return res.status(404).json({ error: "Current user or their company not found" }).end();
+      }
+
+      const companyId = currentUserCompany.company_id;
+
+      // Create the new user
+      const newUser = await addNewSnipxUser({ email, role, managedBy });
+
+      // Link the new user to the same company
+      await prisma.snipxUserCompany.create({
+          data: {
+              user_id: newUser.id,
+              company_id: companyId
+          }
+      });
+
+      res.status(201).json(newUser).end();
+  } catch (error) {
+      res.status(500).json({ error: "Failed to create user and link to company" }).end();
+  }
+});
+
+/**
+* Find a user by ID.
+*/
+app.post("/api/snipx_users/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+      const foundUser = await findSnipxUserByID(id);
+      res.status(200).json(foundUser).end();
+  } catch (error) {
+      res.status(500).json({ error: "Failed to find user" }).end();
+  }
+});
+
+/**
+* Find users from the same company as the current user.
+*/
+app.post("/api/company_users", async (req, res) => {
+  const { id } = req.body;
+  try {
+      const userCompanyRelation = await prisma.snipxUserCompany.findUnique({
+          where: { user_id: id },
+          include: { company: true }
+      });
+
+      if (!userCompanyRelation || !userCompanyRelation.company) {
+          return res.status(404).json({ message: "User or associated company not found" });
+      }
+
+      const companyId = userCompanyRelation.company_id;
+
+      const companyUsers = await prisma.snipxUserCompany.findMany({
+          where: { company_id: companyId },
+          include: { user: true }
+      });
+
+      const users = companyUsers.map(relation => relation.user);
+
+      res.status(200).json(users).end();
+  } catch (error) {
+      res.status(500).json({ message: "Internal server error" }).end();
+  }
+});
+
+// AUTO FUNC
+app.post('/api/sendEmail', async (req, res) => {
+  try {
+    // Get all users from the Snipx_Users table
+    const users = await prisma.snipx_Users.findMany({
+      where: {
+        email: {
+          not: null,  // Ensure we only get users with email addresses
+        },
+      },
+      select: {
+        email: true, // Only select the email field
+      },
+    });
+
+    if (!users.length) {
+      return res.status(404).json({ error: "No users with valid emails found." });
+    }
+
+    const subject = "SnipX Snippet Reminder!";
+    const message = "Hello, this is an automated message sent every 24h! Dont forget to fill in your snippet for the day in the SnipX app. ";
+
+    // Send an email to each user
+    for (const user of users) {
+      const mailOptions = {
+        from: process.env.EMAIL_USER,  // Sender address (your email)
+        to: user.email,                // Receiver's email address from the database
+        subject: subject,              // Hardcoded subject
+        text: message,                 // Hardcoded message
+      };
+
+      await transporter.sendMail(mailOptions);
+    }
+
+    console.log(`Emails sent to ${users.length} users.`);
+    res.status(200).json({ success: `Emails sent to ${users.length} users.` });
+  } catch (error) {
+    console.error("Error sending emails:", error);
+    res.status(500).json({ error: "Failed to send emails." });
+  }
+});
+
 // AUTO FUNC
 // Initialize the Google Auth client
 const auth = new google.auth.GoogleAuth({
@@ -157,6 +305,24 @@ app.get('/api/skills/:companyId', async (req, res) => {
   }
 });
 
+// SKILLS
+// Endpoint to get all skills with a null company_id
+app.get('/api/skills-no-company', async (req, res) => {
+  try {
+    const skills = await prisma.snipxSkill.findMany({
+      where: {
+        company_id: null,
+      },
+    });
+
+    return res.status(200).json(skills);
+  } catch (error) {
+    console.error('Error fetching skills with null company_id:', error);
+    return res.status(500).json({ error: 'Failed to fetch skills.' });
+  }
+});
+
+
 // TASKS
 // Get all tasks for a specific company, including whether users and skills are assigned
 app.get('/api/tasks/:companyID', async (req, res) => {
@@ -200,25 +366,8 @@ app.get('/api/tasks/:companyID', async (req, res) => {
   }
 });
 
-//SKILLS
-// Endpoint to get all skills with a null company_id
-app.get('/api/skills-no-company', async (req, res) => {
-  try {
-    const skills = await prisma.snipxSkill.findMany({
-      where: {
-        company_id: null,
-      },
-    });
 
-    return res.status(200).json(skills);
-  } catch (error) {
-    console.error('Error fetching skills with null company_id:', error);
-    return res.status(500).json({ error: 'Failed to fetch skills.' });
-  }
-});
-
-
-//TASKS
+// TASKS
 // Endpoint to add skills to a task
 app.post('/api/tasks/:taskId/assign-skills', async (req, res) => {
   const { taskId } = req.params;
@@ -270,7 +419,7 @@ app.post('/api/tasks', async (req, res) => {
     // Convert endsAt string to Date object
     const endsAtDate = new Date(endsAt);
 
-    // Ensure endsAt is a valid date
+    // Ensure endsAt is a valid date    
     if (isNaN(endsAtDate)) {
       return res.status(400).json({ error: 'Invalid endsAt date.' }).end();
     }
@@ -305,7 +454,7 @@ app.post('/api/tasks', async (req, res) => {
         body: Buffer.from(payload).toString('base64'),
       },
       scheduleTime: {
-        seconds: Math.floor(endsAtDate.getTime() / 1000), // Schedule the task for ends_at time
+        seconds: Math.floor((endsAtDate.getTime() - 2 * 60 * 60 * 1000) / 1000), // Schedule the task for ends_at time - 2 hours for timezone
       },
     };
 
@@ -319,8 +468,64 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
+//TASKS
+// Delete a task by ID
+app.delete('/api/tasks/:id', async (req, res) => {
+  const { id } = req.params;
 
+  try {
+    // Check if the task exists
+    const taskExists = await prisma.snipxTask.findUnique({
+      where: { id: parseInt(id) },
+    });
 
+    if (!taskExists) {
+      return res.status(404).json({ error: 'Task not found.' }).end();
+    }
+
+    // Delete the task
+    await prisma.snipxTask.delete({
+      where: { id: parseInt(id) },
+    });
+
+    res.status(200).json({ message: 'Task deleted successfully.' }).end();
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    res.status(500).json({ error: 'Failed to delete task.' }).end();
+  }
+});
+
+// TASKS
+// Assign multiple users to a task
+app.post('/api/tasks/assign-users', async (req, res) => {
+  const { task_id, user_ids } = req.body;
+
+  if (!task_id || !user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {
+    return res.status(400).json({ error: 'Task ID and an array of user IDs are required.' }).end();
+  }
+
+  try {
+    // Ensure all user-task relations are added to the SnipxTaskUser table
+    const createTaskUserRelations = user_ids.map((userId) =>
+      prisma.snipxTaskUser.create({
+        data: {
+          task_id: parseInt(task_id),
+          user_id: parseInt(userId),
+        },
+      })
+    );
+
+    // Wait for all the user-task relations to be created
+    await Promise.all(createTaskUserRelations);
+
+    res.status(200).json({ message: 'Users successfully assigned to the task.' }).end();
+  } catch (error) {
+    console.error('Error assigning users to task:', error);
+    res.status(500).json({ error: 'Failed to assign users to task.' }).end();
+  }
+});
+
+// TASKS
 app.post('/api/task/execute', async (req, res) => {
   const { taskId } = req.body;
 
@@ -562,79 +767,6 @@ app.get('/api/user-skill-hours', async (req, res) => {
 });
 
 
-
-//TASKS
-// Delete a task by ID
-app.delete('/api/tasks/:id', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    // Check if the task exists
-    const taskExists = await prisma.snipxTask.findUnique({
-      where: { id: parseInt(id) },
-    });
-
-    if (!taskExists) {
-      return res.status(404).json({ error: 'Task not found.' }).end();
-    }
-
-    // Delete the task
-    await prisma.snipxTask.delete({
-      where: { id: parseInt(id) },
-    });
-
-    res.status(200).json({ message: 'Task deleted successfully.' }).end();
-  } catch (error) {
-    console.error('Error deleting task:', error);
-    res.status(500).json({ error: 'Failed to delete task.' }).end();
-  }
-});
-
-
-
-// AUTO FUNC
-app.post('/api/sendEmail', async (req, res) => {
-  try {
-    // Get all users from the Snipx_Users table
-    const users = await prisma.snipx_Users.findMany({
-      where: {
-        email: {
-          not: null,  // Ensure we only get users with email addresses
-        },
-      },
-      select: {
-        email: true, // Only select the email field
-      },
-    });
-
-    if (!users.length) {
-      return res.status(404).json({ error: "No users with valid emails found." });
-    }
-
-    const subject = "SnipX Snippet Reminder!";
-    const message = "Hello, this is an automated message sent every 24h! Dont forget to fill in your snippet for the day in the SnipX app. ";
-
-    // Send an email to each user
-    for (const user of users) {
-      const mailOptions = {
-        from: process.env.EMAIL_USER,  // Sender address (your email)
-        to: user.email,                // Receiver's email address from the database
-        subject: subject,              // Hardcoded subject
-        text: message,                 // Hardcoded message
-      };
-
-      await transporter.sendMail(mailOptions);
-    }
-
-    console.log(`Emails sent to ${users.length} users.`);
-    res.status(200).json({ success: `Emails sent to ${users.length} users.` });
-  } catch (error) {
-    console.error("Error sending emails:", error);
-    res.status(500).json({ error: "Failed to send emails." });
-  }
-});
-
-
 // PDP
 //uplaod a PDP to a given user in the snippets user table
 app.post('/api/uploadPDP', async (req, res) => {
@@ -776,8 +908,6 @@ app.get('/api/users/:userId/company', async (req, res) => {
   }
 });
 
-
-
 // SKILLS
 // Get All Skills for a Company
 app.get('/api/skills/:companyId', async (req, res) => {
@@ -810,7 +940,6 @@ app.get('/api/skills/:companyId', async (req, res) => {
     res.status(500).json({ error: "Failed to fetch skills." }).end();
   }
 });
-
 
 // SKILLS
 // Create a New Skill for a Company
@@ -886,35 +1015,7 @@ app.delete('/api/skills/:skillId', async (req, res) => {
   }
 });
 
-// TASKS
-// Assign multiple users to a task
-app.post('/api/tasks/assign-users', async (req, res) => {
-  const { task_id, user_ids } = req.body;
 
-  if (!task_id || !user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {
-    return res.status(400).json({ error: 'Task ID and an array of user IDs are required.' }).end();
-  }
-
-  try {
-    // Ensure all user-task relations are added to the SnipxTaskUser table
-    const createTaskUserRelations = user_ids.map((userId) =>
-      prisma.snipxTaskUser.create({
-        data: {
-          task_id: parseInt(task_id),
-          user_id: parseInt(userId),
-        },
-      })
-    );
-
-    // Wait for all the user-task relations to be created
-    await Promise.all(createTaskUserRelations);
-
-    res.status(200).json({ message: 'Users successfully assigned to the task.' }).end();
-  } catch (error) {
-    console.error('Error assigning users to task:', error);
-    res.status(500).json({ error: 'Failed to assign users to task.' }).end();
-  }
-});
 
 
 // RATINGS
@@ -1034,58 +1135,6 @@ app.get('/api/profilePicture/:userId', async (req, res) => {
 
 
 
-// USERS
-// Add a new user
-app.post("/api/snipx_users", async (req, res) => {
-  const { email, role, managedBy, currentUserID } = req.body;
-  console.log("currentUserID:", currentUserID);
-  console.log("managedBy", managedBy)
-  try {
-    // Step 1: Find the company of the currentUserID
-    const currentUserCompany = await prisma.snipxUserCompany.findUnique({
-      where: { user_id: currentUserID },
-    });
-    console.log("currentUserCompany")
-    console.log(currentUserCompany)
-
-    if (!currentUserCompany) {
-      return res.status(404).json({ error: "Current user or their company not found" }).end();
-    }
-
-    const companyId = currentUserCompany.company_id;
-
-    // Step 2: Create the new user
-    const newUser = await addNewSnipxUser({ email, role, managedBy });
-
-    // Step 3: Link the new user to the same company
-    await prisma.snipxUserCompany.create({
-      data: {
-        user_id: newUser.id,
-        company_id: companyId,
-      },
-    });
-
-    res.status(201).json(newUser).end();
-  } catch (error) {
-    console.error("Failed to create user or link to company:", error);
-    res.status(500).json({ error: "Failed to create user and link to company" }).end();
-  }
-});
-
-// USERS
-// Find a user by ID
-app.post("/api/snipx_users/:id", async (req, res) => {
-  const { id } = req.params;
-
-  console.log("find by id id:", id)
-  try {
-    const foundUser = await findSnipxUserByID(id);
-    console.log("foundUser:", foundUser)
-    res.status(200).json(foundUser).end();
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update user" }).end();
-  }
-});
 
 // SNIPPETS
 // Endpoint to get all snippets for a given team
@@ -1410,52 +1459,8 @@ app.delete("/api/teams/:id", async (req, res) => {
 
 
 
-// USERS
-app.post("/api/company_users", async (req, res) => {
-  try {
-    // Step 1: Extract the user who sent the request
-    const { id } = req.body;
-    console.log("id")
-    console.log(id)
 
-    // Step 2: Find the user's company through SnipxUserCompany
-    const userCompanyRelation = await prisma.snipxUserCompany.findUnique({
-      where: { user_id: id },
-      include: { company: true },
-    });
-
-    console.log("userCompanyRelation")
-    console.log(userCompanyRelation)
-
-    if (!userCompanyRelation || !userCompanyRelation.company) {
-      return res.status(404).json({ message: "User or associated company not found" });
-    }
-
-    const companyId = userCompanyRelation.company_id;
-
-    console.log("companyId")
-    console.log(companyId)
-
-    // Step 3: Find all users associated with the same company
-    const companyUsers = await prisma.snipxUserCompany.findMany({
-      where: { company_id: companyId },
-      include: { user: true },
-    });
-
-
-    // Extract the users from the relations
-    const users = companyUsers.map((relation) => relation.user);
-
-
-    // Step 4: Return the users in the response
-    res.status(200).json(users).end();
-  } catch (error) {
-    console.error("Error fetching company users:", error);
-    res.status(500).json({ message: "Internal server error" }).end();
-  }
-});
-
-
+// Helper function
 // Helper function to create or update a Google Doc
 async function createOrUpdateGoogleDoc(user, snippets) {
   // Create a new document title based on user email
@@ -1721,6 +1726,10 @@ app.post('/api/update-google-pdps', async (req, res) => {
 });
 
 
+
+
+// endpoints below are part of the SCRANYLO Google Extenion and NOT a part of the SNIPX app
+
 // Uses sourcing extension. Get link to the next/previous candidate in the spreadsheet, rules, stats and all skills for the sourcer
 app.get("/api", async (req, res) => {
   const data = {
@@ -1733,41 +1742,6 @@ app.get("/api", async (req, res) => {
   getLinks(data);
 });
 
-
-
-// USERS
-// Edit a user by ID
-app.put("/api/snipx_users/:id", async (req, res) => {
-  const { id } = req.params;
-  const { email, role, managedBy } = req.body;
-  console.log("managedBy edit:", managedBy)
-  try {
-    const updatedUser = await updateSnipxUserById(id, { email, role, managedBy });
-    res.status(200).json(updatedUser).end();
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update user" }).end();
-  }
-});
-
-//USERS 
-// Delete a user by ID
-app.delete("/api/snipx_users/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    await deleteSnipxUserById(id);
-    res.status(204).end();
-  } catch (error) {
-    res.status(500).json({ error: "Failed to delete user" }).end();
-  }
-});
-
-//USERS 
-// get all snippets from db
-app.get("/api/snipx_snippets",async (req, res) => {
-  const allSnippets = await findAllSnippets();
-  res.status(200).json(allSnippets).end();
-});
 
 // SNIPPETS
 // Get snippets by Company ID
