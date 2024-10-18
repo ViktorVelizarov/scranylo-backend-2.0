@@ -35,6 +35,13 @@ const {
   addNewSnipxUser,
 } = require("./database/snipx_user.js");
 const {
+  getSkillsByCompanyId,
+  createSkill,
+  updateSkillById,
+  deleteSkillById,
+  getSkillsWithNoCompany,
+} = require('./database/snipx_skills.js');
+const {
   AddSnippet,
   findSnippetsByCompanyId,
   findSnippetsByUserCompanyId,
@@ -103,6 +110,28 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const keyFilePath = require("./credentials2.json");  //this is the whole file as an object
 const keyFilePath2 = './credentials3.json';   //this is jsut the location of the file
+
+// SKILLS
+// Get All Skills for a Company
+app.get('/api/skills/:companyId', getSkillsByCompanyId);
+
+// SKILLS
+// Create a New Skill for a Company
+app.post('/api/skills', createSkill);
+
+// SKILLS
+// Update a Skill by ID
+app.put('/api/skills/:skillId', updateSkillById);
+
+// SKILLS
+// Delete a Skill by ID
+app.delete('/api/skills/:skillId', deleteSkillById);
+
+// SKILLS
+// Get All Skills with a null company_id
+app.get('/api/skills-no-company', getSkillsWithNoCompany);
+
+
 
 
 // SNIPPETS
@@ -406,56 +435,6 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-
-// SKILLS
-// Get All Skills for a Company
-app.get('/api/skills/:companyId', async (req, res) => {
-  const { companyId } = req.params;
-  console.log(`Fetching skills for companyId: ${companyId}`);
-
-  try {
-    const skills = await prisma.snipxSkill.findMany({
-      where: { company_id: parseInt(companyId) },
-      select: {
-        id: true,
-        skill_name: true,
-        desc1: true,
-        desc2: true,
-        desc3: true,
-        desc4: true,
-        desc5: true,
-        ratings: {
-          select: {
-            score: true,
-          },
-        },
-      },
-    });
-
-    console.log('Skills fetched successfully:', skills);
-    res.status(200).json(skills).end();
-  } catch (error) {
-    console.error("Failed to fetch skills:", error);
-    res.status(500).json({ error: "Failed to fetch skills." }).end();
-  }
-});
-
-// SKILLS
-// Endpoint to get all skills with a null company_id
-app.get('/api/skills-no-company', async (req, res) => {
-  try {
-    const skills = await prisma.snipxSkill.findMany({
-      where: {
-        company_id: null,
-      },
-    });
-
-    return res.status(200).json(skills);
-  } catch (error) {
-    console.error('Error fetching skills with null company_id:', error);
-    return res.status(500).json({ error: 'Failed to fetch skills.' });
-  }
-});
 
 
 // TASKS
@@ -1043,112 +1022,6 @@ app.get('/api/users/:userId/company', async (req, res) => {
   }
 });
 
-// SKILLS
-// Get All Skills for a Company
-app.get('/api/skills/:companyId', async (req, res) => {
-  const { companyId } = req.params;
-  console.log(`Fetching skills for companyId: ${companyId}`);
-
-  try {
-    const skills = await prisma.snipxSkill.findMany({
-      where: { company_id: parseInt(companyId) },
-      select: {
-        id: true,
-        skill_name: true,
-        desc1: true,
-        desc2: true,
-        desc3: true,
-        desc4: true,
-        desc5: true,
-        ratings: {
-          select: {
-            score: true,
-          },
-        },
-      },
-    });
-
-    console.log('Skills fetched successfully:', skills);
-    res.status(200).json(skills).end();
-  } catch (error) {
-    console.error("Failed to fetch skills:", error);
-    res.status(500).json({ error: "Failed to fetch skills." }).end();
-  }
-});
-
-// SKILLS
-// Create a New Skill for a Company
-app.post('/api/skills', async (req, res) => {
-  const { skillName, companyId, desc1, desc2, desc3, desc4, desc5 } = req.body;
-  console.log(`Creating skill: ${skillName} for companyId: ${companyId}`);
-
-  try {
-    const newSkill = await prisma.snipxSkill.create({
-      data: {
-        skill_name: skillName,
-        company_id: parseInt(companyId),
-        desc1,
-        desc2,
-        desc3,
-        desc4,
-        desc5,
-      },
-    });
-
-    console.log('Skill created successfully:', newSkill);
-    res.status(201).json(newSkill).end();
-  } catch (error) {
-    console.error("Failed to create skill:", error);
-    res.status(500).json({ error: "Failed to create skill." }).end();
-  }
-});
-
-// SKILLS
-// Update a Skill by ID
-app.put('/api/skills/:skillId', async (req, res) => {
-  const { skillId } = req.params;
-  const { skillName, desc1, desc2, desc3, desc4, desc5 } = req.body;
-  console.log(`Updating skillId: ${skillId} to new name: ${skillName}`);
-
-  try {
-    const updatedSkill = await prisma.snipxSkill.update({
-      where: { id: parseInt(skillId) },
-      data: {
-        skill_name: skillName,
-        desc1,
-        desc2,
-        desc3,
-        desc4,
-        desc5,
-      },
-    });
-
-    console.log('Skill updated successfully:', updatedSkill);
-    res.status(200).json(updatedSkill).end();
-  } catch (error) {
-    console.error("Failed to update skill:", error);
-    res.status(500).json({ error: "Failed to update skill." }).end();
-  }
-});
-
-// SKILLS
-// Delete a Skill by ID
-app.delete('/api/skills/:skillId', async (req, res) => {
-  const { skillId } = req.params;
-  console.log(`Deleting skillId: ${skillId}`);
-
-  try {
-    await prisma.snipxSkill.delete({
-      where: { id: parseInt(skillId) },
-    });
-
-    console.log('Skill deleted successfully:', skillId);
-    res.status(200).json({ message: "Skill deleted successfully." }).end();
-  } catch (error) {
-    console.error("Failed to delete skill:", error);
-    res.status(500).json({ error: "Failed to delete skill." }).end();
-  }
-});
 
 
 
