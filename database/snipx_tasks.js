@@ -1,6 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { tasksClient } = require('./cloud_tasks'); // Assuming your Cloud Tasks client setup is here
 
 // Get all tasks for a specific company, including whether users and skills are assigned
 async function getTasksForCompany(req, res) {

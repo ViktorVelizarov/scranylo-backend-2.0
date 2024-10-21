@@ -37,8 +37,8 @@ const {
 const {
   getSkillsByCompanyId,
   createSkill,
-  updateSkillById,
-  deleteSkillById,
+  updateSkillByIdSNIPX,
+  deleteSkillByIdSNIPX,
   getSkillsWithNoCompany,
 } = require('./database/snipx_skills.js');
 const {
@@ -50,6 +50,7 @@ const {
   executeTask
 } = require('./database/snipx_tasks.js');
 const {
+  findAllSnippets,
   AddSnippet,
   findSnippetsByCompanyId,
   findSnippetsByUserCompanyId,
@@ -118,6 +119,26 @@ const upload = multer({ storage: multer.memoryStorage() });
 const keyFilePath = require("./credentials2.json");  //this is the whole file as an object
 const keyFilePath2 = './credentials3.json';   //this is jsut the location of the file
 
+// AUTO FUNC
+// Initialize the Google Auth client
+const auth = new google.auth.GoogleAuth({
+  credentials: keyFilePath,
+  scopes: ['https://www.googleapis.com/auth/documents', 'https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/cloud-platform'],
+});
+// Create a Cloud Tasks Client with credentials
+const tasksClient = new CloudTasksClient({
+  keyFilename: keyFilePath2, // Use the keyFile option for Cloud Tasks
+});
+
+const docs = google.docs({ version: 'v1', auth });
+const drive = google.drive({ version: 'v3', auth });
+
+
+// inicialize app to use Firebase services
+const serviceAccount = require("./firebaseAccountKey.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 
 // TASKS
@@ -130,7 +151,67 @@ app.post('/api/tasks/:taskId/assign-skills', assignSkillsToTask);
 
 // TASKS
 // Create a new task
-app.post('/api/tasks', createTask);
+app.post('/api/tasks', async (req, res) => {
+  const { task_name, task_description, task_type, company_id, endsAt } = req.body;
+  console.log("endsAt", endsAt);
+
+  if (!task_name || !company_id) {
+    return res.status(400).json({ error: 'Task name and company ID are required.' }).end();
+  }
+
+  try {
+    // Convert endsAt string to Date object
+    const endsAtDate = new Date(endsAt);
+
+    // Ensure endsAt is a valid date    
+    if (isNaN(endsAtDate)) {
+      return res.status(400).json({ error: 'Invalid endsAt date.' }).end();
+    }
+
+    // Set the total hours
+    const totalHours = (endsAtDate - new Date()) / (1000 * 60 * 60); // Calculate hours between now and ends_at
+
+    const newTask = await prisma.snipxTask.create({
+      data: {
+        task_name,
+        task_description: task_description || null,
+        task_type: task_type || null,
+        company_id: parseInt(company_id),
+        ends_at: endsAtDate,
+        total_hours: totalHours,
+      },
+    });
+
+    // Create the Cloud Task to trigger at endsAt time
+    const project = 'extension-360407'; // Replace with your project ID
+    const queue = 'queue1'; // Replace with your task queue name
+    const location = 'europe-central2'; // e.g., 'us-central1'
+    const url = 'https://extension-360407.lm.r.appspot.com/api/task/execute'; // Your API endpoint
+
+    const payload = JSON.stringify({ taskId: newTask.id });
+
+    const task = {
+      httpRequest: {
+        httpMethod: 'POST',
+        url,
+        headers: { 'Content-Type': 'application/json' },
+        body: Buffer.from(payload).toString('base64'),
+      },
+      scheduleTime: {
+        seconds: Math.floor((endsAtDate.getTime() - 2 * 60 * 60 * 1000) / 1000), // Schedule the task for ends_at time - 2 hours for timezone
+      },
+    };
+
+    const parent = tasksClient.queuePath(project, location, queue);
+    await tasksClient.createTask({ parent, task });
+
+    res.status(201).json(newTask).end();
+  } catch (error) {
+    console.error('Error creating new task:', error);
+    res.status(500).json({ error: 'Failed to create new task.' }).end();
+  }
+});
+
 
 // TASKS
 // Delete a task by ID
@@ -155,18 +236,23 @@ app.post('/api/skills', createSkill);
 
 // SKILLS
 // Update a Skill by ID
-app.put('/api/skills/:skillId', updateSkillById);
+app.put('/api/skills/:skillId', updateSkillByIdSNIPX);
 
 // SKILLS
 // Delete a Skill by ID
-app.delete('/api/skills/:skillId', deleteSkillById);
+app.delete('/api/skills/:skillId', deleteSkillByIdSNIPX);
 
 // SKILLS
 // Get All Skills with a null company_id
 app.get('/api/skills-no-company', getSkillsWithNoCompany);
 
 
-
+// SNIPPETS
+// get all snippets from db
+app.get("/api/snipx_snippets",async (req, res) => {
+  const allSnippets = await findAllSnippets();
+  res.status(200).json(allSnippets).end();
+});
 
 // SNIPPETS
 // Get snippets by Company ID
@@ -448,26 +534,7 @@ app.post('/api/sendEmail', async (req, res) => {
   }
 });
 
-// AUTO FUNC
-// Initialize the Google Auth client
-const auth = new google.auth.GoogleAuth({
-  credentials: keyFilePath,
-  scopes: ['https://www.googleapis.com/auth/documents', 'https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/cloud-platform'],
-});
-// Create a Cloud Tasks Client with credentials
-const tasksClient = new CloudTasksClient({
-  keyFilename: keyFilePath2, // Use the keyFile option for Cloud Tasks
-});
 
-const docs = google.docs({ version: 'v1', auth });
-const drive = google.drive({ version: 'v3', auth });
-
-
-// inicialize app to use Firebase services
-const serviceAccount = require("./firebaseAccountKey.json");
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
 
 
 

@@ -60,7 +60,7 @@ const createSkill = async (req, res) => {
 };
 
 // Update a skill by ID
-const updateSkillById = async (req, res) => {
+const updateSkillByIdSNIPX = async (req, res) => {
   const { skillId } = req.params;
   const { skillName, desc1, desc2, desc3, desc4, desc5 } = req.body;
   console.log(`Updating skillId: ${skillId} to new name: ${skillName}`);
@@ -87,7 +87,7 @@ const updateSkillById = async (req, res) => {
 };
 
 // Delete a skill by ID
-const deleteSkillById = async (req, res) => {
+const deleteSkillByIdSNIPX = async (req, res) => {
   const { skillId } = req.params;
   console.log(`Deleting skillId: ${skillId}`);
 
@@ -123,7 +123,7 @@ const getSkillsWithNoCompany = async (req, res) => {
 module.exports = {
   getSkillsByCompanyId,
   createSkill,
-  updateSkillById,
-  deleteSkillById,
+  updateSkillByIdSNIPX,
+  deleteSkillByIdSNIPX,
   getSkillsWithNoCompany,
 };

@@ -150,6 +150,12 @@ const findTeamSnippets = async (teamId) => {
   }
 };
 
+// Function to get all snippets
+const findAllSnippets = async () => {
+  const allSnippets = await prisma.snipxSnippet.findMany({ orderBy: { id: "desc" } });
+  return allSnippets;
+};
+
 module.exports = {
   AddSnippet,
   findSnippetsByCompanyId,
@@ -159,4 +165,5 @@ module.exports = {
   updateSnippetById,
   deleteSnippetById,
   findTeamSnippets,
+  findAllSnippets
 };
