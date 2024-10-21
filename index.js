@@ -48,6 +48,11 @@ const {
   deleteTeam,
 } = require('./database/snipx_teams.js');
 const {
+  uploadPDP,
+  uploadAIPDP,
+  getPDP,
+} = require('./database/snipx_pdp.js');
+const {
   deleteNotification,
   getAllNotifications,
 } = require('./database/snipx_notifications.js');
@@ -149,6 +154,48 @@ const serviceAccount = require("./firebaseAccountKey.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
+
+// PDP Endpoints
+app.post('/api/uploadPDP', uploadPDP);
+
+// PDP
+app.post('/api/analyzePDP', async (req, res) => {
+  const { PDPText } = req.body; // Destructure PDPText from the request body
+
+  console.log("Received PDP for analysis:", PDPText);
+
+  try {
+    // Validate the input
+    if (!PDPText) {
+      console.log("Invalid request: Missing PDP text");
+      return res.status(400).json({ error: "PDP text is required." }).end();
+    }
+
+    // Create the prompt for the OpenAI model
+    const promptText = `Analyze this Personal Development Plan for me: "${PDPText}"`;
+
+    // Call OpenAI API to get the analysis
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "system", content: promptText }],
+
+    });
+
+    // Extract the analysis result
+    const analysisResult = completion.choices[0].message.content;
+
+    console.log("AI PDP analysis result:", analysisResult);
+
+    // Return the AI analysis result
+    res.status(200).json({ AIAnalysis: analysisResult }).end();
+  } catch (error) {
+    console.error("Failed to analyze PDP:", error);
+    res.status(500).json({ error: "Failed to analyze PDP." }).end();
+  }
+});
+
+app.post('/api/uploadAIPDP', uploadAIPDP);
+app.get('/api/getPDP/:userId', getPDP);
 
 // NOTIFICATIONS
 app.delete('/api/notification/:id', deleteNotification);
@@ -587,124 +634,7 @@ app.get('/api/user-skill-hours', async (req, res) => {
 });
 
 
-// PDP
-//uplaod a PDP to a given user in the snippets user table
-app.post('/api/uploadPDP', async (req, res) => {
-  const { userId, PDPText } = req.body; // Destructure userId and PDPText from the request body
 
-  console.log("userID:", parseInt(userId));
-  console.log("Received PDP:", PDPText);
-
-  try {
-    // Validate the input
-    if (!userId || !PDPText) {
-      console.log("Invalid request: Missing userId or PDP text");
-      return res.status(400).json({ error: "User ID and PDP text are required." }).end();
-    }
-
-    const updatedUser = await prisma.snipx_Users.update({
-      where: { id: parseInt(userId) }, // Ensure userId is an integer
-      data: {
-        PDP: PDPText, 
-      },
-    });
-
-    console.log("PDP uploaded successfully:", updatedUser);
-    res.status(200).json(updatedUser).end();
-  } catch (error) {
-    console.error("Failed to upload PDP:", error);
-    res.status(500).json({ error: "Failed to upload PDP." }).end();
-  }
-});
-
-
-// PDP
-app.post('/api/analyzePDP', async (req, res) => {
-  const { PDPText } = req.body; // Destructure PDPText from the request body
-
-  console.log("Received PDP for analysis:", PDPText);
-
-  try {
-    // Validate the input
-    if (!PDPText) {
-      console.log("Invalid request: Missing PDP text");
-      return res.status(400).json({ error: "PDP text is required." }).end();
-    }
-
-    // Create the prompt for the OpenAI model
-    const promptText = `Analyze this Personal Development Plan for me: "${PDPText}"`;
-
-    // Call OpenAI API to get the analysis
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "system", content: promptText }],
-
-    });
-
-    // Extract the analysis result
-    const analysisResult = completion.choices[0].message.content;
-
-    console.log("AI PDP analysis result:", analysisResult);
-
-    // Return the AI analysis result
-    res.status(200).json({ AIAnalysis: analysisResult }).end();
-  } catch (error) {
-    console.error("Failed to analyze PDP:", error);
-    res.status(500).json({ error: "Failed to analyze PDP." }).end();
-  }
-});
-
-// PDP
-app.post('/api/uploadAIPDP', async (req, res) => {
-  const { userId, PDPText } = req.body; // Destructure userId and PDPText from the request body
-
-  console.log("userID:", parseInt(userId));
-  console.log("Received PDP for upload:", PDPText);
-
-  try {
-    // Validate the input
-    if (!userId || !PDPText) {
-      console.log("Invalid request: Missing userId or PDP text");
-      return res.status(400).json({ error: "User ID and PDP text are required." }).end();
-    }
-
-    // Store the provided PDPText directly in the AI_PDP field in the database
-    const updatedUser = await prisma.snipx_Users.update({
-      where: { id: parseInt(userId) }, // Ensure userId is an integer
-      data: {
-        AI_PDP: PDPText, // Save the provided PDPText in the AI_PDP field
-      },
-    });
-
-    console.log("PDP uploaded successfully to AI_PDP field:", updatedUser);
-    res.status(200).json(updatedUser).end();
-  } catch (error) {
-    console.error("Failed to upload PDP to AI_PDP field:", error);
-    res.status(500).json({ error: "Failed to upload PDP." }).end();
-  }
-});
-
-// PDP
-//get the PDP text of a given user from the snippets users table
-app.get('/api/getPDP/:userId', async (req, res) => {
-  const { userId } = req.params;
-
-  try {
-    const user = await prisma.snipx_Users.findUnique({
-      where: { id: parseInt(userId) },
-      select: { PDP: true },
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: "User not found" }).end();
-    }
-
-    res.status(200).json({ PDP: user.PDP }).end();
-  } catch (error) {
-    console.error("Failed to retrieve PDP:", error);
-    res.status(500).json({ error: "Failed to retrieve PDP." }).end();
-  }
-});
 
 // COMPANY
 // Get Company ID for a User
@@ -1247,7 +1177,7 @@ app.post("/api/sentimentAnalysis", async (req, res) => {
   try {
     const promptText = `Write me a sentiment analysis of this daily work snippet in json format.
      I want 3 fields. The first field is "sentiment" which is true or false according to if the sentiment analysis
-      is positive or negative.The second field is "score" which is JUST A NUMBER value from 1 to 10 corresponding
+      is positive or negative.The second field is "score" which is JUST A NUMBER value from f1 to 10 corresponding
        to the sentiment. The third field is "explanations" which gives a description of the sentiment analysis: "${text}"`;
 
     const completion = await openai.chat.completions.create({
