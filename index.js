@@ -68,6 +68,7 @@ const {
   assignUsersToTask,
   executeTask
 } = require('./database/snipx_tasks.js');
+const { getUserSkillHours, getUserCompany } = require('./database/snipx_misc.js');
 const {
   findAllSnippets,
   AddSnippet,
@@ -320,6 +321,11 @@ app.delete('/api/skills/:skillId', deleteSkillByIdSNIPX);
 // Get All Skills with a null company_id
 app.get('/api/skills-no-company', getSkillsWithNoCompany);
 
+// HOURS Endpoint
+app.get('/api/user-skill-hours', getUserSkillHours);
+
+// COMPANY Endpoint
+app.get('/api/users/:userId/company', getUserCompany);
 
 // SNIPPETS
 // get all snippets from db
@@ -458,8 +464,6 @@ app.post("/api/company_snippets", async (req, res) => {
 });
 
 
-
-
 // Users API
 
 /**
@@ -499,16 +503,12 @@ app.post("/api/snipx_users", async (req, res) => {
       const currentUserCompany = await prisma.snipxUserCompany.findUnique({
           where: { user_id: currentUserID }
       });
-
       if (!currentUserCompany) {
           return res.status(404).json({ error: "Current user or their company not found" }).end();
       }
-
       const companyId = currentUserCompany.company_id;
-
       // Create the new user
       const newUser = await addNewSnipxUser({ email, role, managedBy });
-
       // Link the new user to the same company
       await prisma.snipxUserCompany.create({
           data: {
@@ -546,27 +546,22 @@ app.post("/api/company_users", async (req, res) => {
           where: { user_id: id },
           include: { company: true }
       });
-
       if (!userCompanyRelation || !userCompanyRelation.company) {
           return res.status(404).json({ message: "User or associated company not found" });
       }
-
       const companyId = userCompanyRelation.company_id;
-
       const companyUsers = await prisma.snipxUserCompany.findMany({
           where: { company_id: companyId },
           include: { user: true }
       });
-
       const users = companyUsers.map(relation => relation.user);
-
       res.status(200).json(users).end();
   } catch (error) {
       res.status(500).json({ message: "Internal server error" }).end();
   }
 });
 
-// AUTO FUNC
+// AUTO FUNCION - sends reminder emails to app users telling them to fill their snippets every day
 app.post('/api/sendEmail', async (req, res) => {
   try {
     // Get all users from the Snipx_Users table
@@ -608,66 +603,7 @@ app.post('/api/sendEmail', async (req, res) => {
   }
 });
 
-
-
-
-
-
-
-// HOURS
-// Get all user skill hours with user emails and skill names
-app.get('/api/user-skill-hours', async (req, res) => {
-  try {
-    const userSkillHours = await prisma.snipxUserSkillHours.findMany({
-      include: {
-        user: {
-          select: {
-            email: true,  // Include the user's email
-          },
-        },
-        skill: {
-          select: {
-            skill_name: true,  // Include the skill name
-          },
-        },
-      },
-    });
-
-    console.log(`Retrieved ${userSkillHours.length} user skill hour records with emails and skill names.`);
-    res.status(200).json(userSkillHours);
-  } catch (error) {
-    console.error('Error retrieving user skill hours:', error);
-    res.status(500).send('Internal Server Error.');
-  }
-});
-
-
-
-
-// COMPANY
-// Get Company ID for a User
-app.get('/api/users/:userId/company', async (req, res) => {
-  const { userId } = req.params;
-
-  try {
-    const userCompany = await prisma.snipxUserCompany.findUnique({
-      where: { user_id: parseInt(userId) },
-      select: { company_id: true },
-    });
-
-    if (userCompany) {
-      res.status(200).json({ companyId: userCompany.company_id }).end();
-    } else {
-      res.status(404).json({ error: "User not found or not associated with any company." }).end();
-    }
-  } catch (error) {
-    console.error("Failed to fetch company ID:", error);
-    res.status(500).json({ error: "Failed to fetch company ID." }).end();
-  }
-});
-
-
-// PFP
+// PROFILE PICTURE
 // Endpoint to upload an image
 app.post('/api/uploadProfilePicture', upload.single('profilePicture'), async (req, res) => {
   const { userId } = req.body;
@@ -701,7 +637,7 @@ app.post('/api/uploadProfilePicture', upload.single('profilePicture'), async (re
   }
 });
 
-// PFP
+// PROFILE PICTURE
 // Endpoint to retrieve a profile picture
 app.get('/api/profilePicture/:userId', async (req, res) => {
   const { userId } = req.params;
