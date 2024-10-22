@@ -42,6 +42,10 @@ const {
   getSkillsWithNoCompany,
 } = require('./database/snipx_skills.js');
 const {
+  getUserRatings,
+  createUserRating,
+} = require('./database/snipx_ratings.js');
+const {
   getTeamsForUser,
   createTeam,
   updateTeam,
@@ -154,6 +158,10 @@ const serviceAccount = require("./firebaseAccountKey.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
+
+// RATINGS Endpoints
+app.get('/api/users/:userId/ratings', getUserRatings);
+app.post('/api/users/:userId/ratings', createUserRating);
 
 // PDP Endpoints
 app.post('/api/uploadPDP', uploadPDP);
@@ -655,62 +663,6 @@ app.get('/api/users/:userId/company', async (req, res) => {
   } catch (error) {
     console.error("Failed to fetch company ID:", error);
     res.status(500).json({ error: "Failed to fetch company ID." }).end();
-  }
-});
-
-
-
-
-
-// RATINGS
-// Get Skill Ratings for a User
-app.get('/api/users/:userId/ratings', async (req, res) => {
-  const { userId } = req.params;
-  console.log(`Fetching skill ratings for userId: ${userId}`);
-
-  try {
-    const ratings = await prisma.snipxRating.findMany({
-      where: { user_id: parseInt(userId) },
-      select: {
-        score: true,
-        created_at: true,
-        skill: {
-          select: { id: true },
-        },
-      },
-    });
-
-    console.log('Ratings fetched successfully:', ratings);
-    res.status(200).json(ratings).end();
-  } catch (error) {
-    console.error("Failed to fetch ratings:", error);
-    res.status(500).json({ error: "Failed to fetch ratings." }).end();
-  }
-});
-
-// RATINGS
-// Create a new Skill Rating for a User
-app.post('/api/users/:userId/ratings', async (req, res) => {
-  const { userId } = req.params;
-  const { skillId, score } = req.body;
-  console.log(`Creating new rating for userId: ${userId}, skillId: ${skillId}, score: ${score}`);
-
-  try {
-    // Create a new rating
-    const rating = await prisma.snipxRating.create({
-      data: {
-        user_id: parseInt(userId),
-        skill_id: parseInt(skillId),
-        score: score,
-        created_at: new Date(), // Use the current timestamp
-      },
-    });
-
-    console.log('Rating created successfully:', rating);
-    res.status(200).json(rating).end();
-  } catch (error) {
-    console.error("Failed to create rating:", error);
-    res.status(500).json({ error: "Failed to create rating." }).end();
   }
 });
 
