@@ -287,7 +287,6 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
-
 // TASKS
 // Delete a task by ID
 app.delete('/api/tasks/:id', deleteTask);
@@ -448,13 +447,14 @@ app.post("/api/team_snippets", async (req, res) => {
 });
 
 // SNIPPETS
-// Get snippets by Company ID
+// Get all snipets from the company the given user is in
 app.post("/api/company_snippets", async (req, res) => {
   try {
-    const { userId } = req.body;
-    if (!userId) return res.status(400).json({ error: "User ID is required" });
+    const { id } = req.body;
+    console.log("received user id in /api/company_snippets:", id)
+    if (!id) return res.status(400).json({ error: "User ID is required" });
 
-    const companySnippets = await findSnippetsByUserCompanyId(userId);
+    const companySnippets = await findSnippetsByUserCompanyId(id);
     if (companySnippets.length === 0) return res.status(404).json({ message: "No snippets found for this company" });
 
     res.status(200).json(companySnippets);
@@ -773,22 +773,18 @@ async function createOrUpdateGoogleDoc(user, snippets) {
 app.post('/api/update-google-docs', async (req, res) => {
   try {
     console.log('Received request to update Google Docs.');
-
     // Get all users
     const users = await prisma.snipx_Users.findMany();
     console.log(`Found ${users.length} users in the database.`);
-
     for (const user of users) {
       // Get all snippets for the user
       const snippets = await prisma.snipxSnippet.findMany({
         where: { user_id: user.id },
       });
       console.log(`Found ${snippets.length} snippets for user ${user.email}.`);
-
       // Create or update the Google Doc for the user
       await createOrUpdateGoogleDoc(user, snippets);
     }
-
     console.log('All Google Docs updated successfully.');
     res.status(200).send('Google Docs updated successfully.');
   } catch (error) {
@@ -796,7 +792,6 @@ app.post('/api/update-google-docs', async (req, res) => {
     res.status(500).send('Internal Server Error');
   }
 });
-
 
 
 // AUTO FUNC
@@ -930,6 +925,9 @@ app.post('/api/update-google-pdps', async (req, res) => {
     res.status(500).send('Internal Server Error');
   }
 });
+
+
+
 
 
 
