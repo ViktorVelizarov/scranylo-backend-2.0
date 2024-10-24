@@ -47,7 +47,7 @@ const findSnippetsByCompanyId = async (companyId) => {
   }
 };
 
-// Function to find snippets for a user's company
+// Function to find all snippets from the company of the given user
 const findSnippetsByUserCompanyId = async (userId) => {
   try {
     const userCompanyRelation = await prisma.snipxUserCompany.findUnique({
