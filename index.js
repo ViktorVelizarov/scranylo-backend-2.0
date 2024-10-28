@@ -208,7 +208,7 @@ app.get('/api/getPDP/:userId', getPDP);
 
 // NOTIFICATIONS
 app.delete('/api/notification/:id', deleteNotification);
-app.get('/api/notifications', getAllNotifications);
+app.post('/api/notifications', getAllNotifications);
 
 // TEAMS
 app.get('/api/teams', getTeamsForUser);
