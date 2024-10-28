@@ -29,6 +29,7 @@ The database used is a MySQL database, which we work with using the Prisma ORM. 
 The database structure can be found in /prisma/schema.prisma.
 A diagram of the structure can be found in /prisma/prisma_schema_diagram.png
 
+A second firebase DB is also used only for user authentication. I used libraries to connect to it both on frontend and backend. The main point of contact with it in the backend is the endpoint /api/snipx_auth/firebase is called after a user logs in with an email address on the frontend. That endpoint basically jsut checks if the email the user logged in with is present in the main MySQL database in snipx_users table and if its not, then the user is not given permission to the app. That way only users that log in with an email address that is already present in the MySQL database can access the app.
 __
 
 ## Deployment

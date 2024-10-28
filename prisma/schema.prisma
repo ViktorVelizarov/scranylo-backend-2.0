@@ -11,19 +11,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Users {
-  id          Int           @id @default(autoincrement())
-  email       String?       @db.VarChar(250)
-  role        String?       @db.VarChar(100)
-  company_scraper        String?       @db.VarChar(100)
-  stats       DailyStat[]
-  reviews     Reviews[]
-  DailyQAStat DailyQAStat[]
 
-  @@map("ext_users")
-}
-
-
+// SNIPX TABLES
 
 
 model Snipx_Users {
@@ -278,6 +267,20 @@ model SnipxUserSkillHours {
 
 
 
+
+// SCRANYLO TABLES
+
+model Users {
+  id          Int           @id @default(autoincrement())
+  email       String?       @db.VarChar(250)
+  role        String?       @db.VarChar(100)
+  company_scraper        String?       @db.VarChar(100)
+  stats       DailyStat[]
+  reviews     Reviews[]
+  DailyQAStat DailyQAStat[]
+
+  @@map("ext_users")
+}
 
 
 

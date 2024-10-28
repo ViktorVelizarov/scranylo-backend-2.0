@@ -321,7 +321,9 @@ app.delete('/api/skills/:skillId', deleteSkillByIdSNIPX);
 app.get('/api/skills-no-company', getSkillsWithNoCompany);
 
 // HOURS Endpoint
-app.get('/api/user-skill-hours', getUserSkillHours);
+app.post('/api/user-skill-hours', getUserSkillHours);
+
+
 
 // COMPANY Endpoint
 app.get('/api/users/:userId/company', getUserCompany);
@@ -1122,7 +1124,7 @@ app.post("/api/snipx_auth/firebase", async (req, res) => {
     .then(async (decodedToken) => {
       const email = decodedToken.email;
       const result = await findSnipxUserByEmail(email);
-      console.log("snipx admin user: ")
+      console.log("found snipx user: ")
       console.log(result)
       res.status(200).json(result).end();
     })
